@@ -1,0 +1,599 @@
+/*
+ * Windows presentation layer.
+ * Everything in this file is scoped to Tauri so the shared responsive UI
+ * remains ready for a future Capacitor/iOS theme.
+ */
+
+:root.tauri-desktop {
+  --bg: #f3f3f3;
+  --card: rgba(255, 255, 255, .72);
+  --text: #1b1b1b;
+  --muted: #616161;
+  --border: rgba(0, 0, 0, .14);
+  --accent: #005fb8;
+  --radius: 6px;
+  --body-font: "Segoe UI Variable Text", "Segoe UI", sans-serif;
+  --display-font: "Segoe UI Variable Display", "Segoe UI", sans-serif;
+  --glass: rgba(255, 255, 255, .67);
+  --glass-strong: rgba(255, 255, 255, .82);
+  --glass-border: rgba(0, 0, 0, .09);
+  --glass-shadow: 0 1px 2px rgba(0, 0, 0, .05);
+  color-scheme: light;
+}
+
+:root.windows-preview body {
+  justify-content: flex-start;
+}
+
+:root.windows-preview .app {
+  max-width: 420px;
+}
+
+.tauri-desktop body {
+  background:
+    radial-gradient(circle at 88% 4%, rgba(0, 95, 184, .07), transparent 34%),
+    #f3f3f3;
+  font-family: var(--body-font);
+  letter-spacing: 0;
+}
+
+.tauri-desktop .app {
+  background: rgba(248, 248, 248, .76);
+  backdrop-filter: blur(22px) saturate(108%);
+  -webkit-backdrop-filter: blur(22px) saturate(108%);
+}
+
+.tauri-desktop .screen {
+  padding: 20px 20px 24px;
+  scrollbar-color: rgba(0, 0, 0, .26) transparent;
+  scrollbar-width: thin;
+}
+
+.tauri-desktop .screen::-webkit-scrollbar {
+  width: 10px;
+}
+
+.tauri-desktop .screen::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, .24);
+  border: 3px solid transparent;
+  border-radius: 8px;
+  background-clip: padding-box;
+}
+
+.tauri-desktop h1,
+.tauri-desktop h2 {
+  font-family: var(--display-font);
+}
+
+.tauri-desktop h2 {
+  font-size: 20px;
+  font-weight: 600;
+  letter-spacing: -.2px;
+}
+
+.tauri-desktop button,
+.tauri-desktop input,
+.tauri-desktop .dur-btn,
+.tauri-desktop .tab {
+  font-family: var(--body-font);
+}
+
+.tauri-desktop button:focus-visible,
+.tauri-desktop input:focus-visible,
+.tauri-desktop .dur-btn:focus-visible,
+.tauri-desktop .tab:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* Fluent-style controls */
+.tauri-desktop .btn {
+  min-height: 34px;
+  padding: 6px 16px;
+  border: 1px solid rgba(0, 0, 0, .16);
+  border-bottom-color: rgba(0, 0, 0, .24);
+  border-radius: 4px;
+  background: rgba(255, 255, 255, .74);
+  box-shadow: 0 1px 1px rgba(0, 0, 0, .03);
+  color: var(--text);
+  font-size: 14px;
+  font-weight: 500;
+  transition: background-color 120ms ease, border-color 120ms ease, color 120ms ease;
+}
+
+.tauri-desktop .btn:active {
+  transform: none;
+  opacity: 1;
+  background: rgba(0, 0, 0, .06);
+}
+
+.tauri-desktop .btn-primary {
+  background: var(--accent);
+  border-color: var(--accent);
+  border-bottom-color: #004b91;
+  box-shadow: none;
+  color: #fff;
+}
+
+.tauri-desktop .btn-secondary {
+  background: rgba(255, 255, 255, .72);
+  border-color: rgba(0, 0, 0, .15);
+  border-bottom-color: rgba(0, 0, 0, .23);
+  box-shadow: none;
+}
+
+.tauri-desktop .btn-ghost {
+  min-height: 30px;
+  background: transparent;
+  border-color: transparent;
+  box-shadow: none;
+  color: #4f4f4f;
+}
+
+.tauri-desktop .btn-danger {
+  background: rgba(196, 43, 28, .08);
+  border-color: rgba(196, 43, 28, .2);
+  color: #c42b1c;
+}
+
+.tauri-desktop .back-btn {
+  min-height: 30px;
+  padding: 4px 8px;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  color: var(--text);
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.tauri-desktop input[type="text"] {
+  min-height: 34px;
+  padding: 6px 10px;
+  border: 1px solid rgba(0, 0, 0, .18);
+  border-bottom: 2px solid rgba(0, 0, 0, .42);
+  border-radius: 4px;
+  background: rgba(255, 255, 255, .78);
+  box-shadow: none;
+  font-size: 14px;
+}
+
+.tauri-desktop input[type="text"]:focus {
+  border-color: rgba(0, 0, 0, .18);
+  border-bottom-color: var(--accent);
+}
+
+.tauri-desktop .field-label {
+  margin-bottom: 7px;
+  color: #4d4d4d;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+.tauri-desktop .field-group {
+  margin-bottom: 20px;
+}
+
+/* Compact acrylic surfaces */
+.tauri-desktop .glass-panel,
+.tauri-desktop .zone-card,
+.tauri-desktop .ns-card,
+.tauri-desktop .state-slider-card,
+.tauri-desktop .chart-box,
+.tauri-desktop .dist-box,
+.tauri-desktop .task-card,
+.tauri-desktop .day-card,
+.tauri-desktop .plan-item,
+.tauri-desktop .plan-item-done,
+.tauri-desktop .tabs,
+.tauri-desktop .timer-badge,
+.tauri-desktop .checkin-eta {
+  background: var(--glass);
+  border: 1px solid var(--glass-border);
+  border-radius: 8px;
+  box-shadow: var(--glass-shadow);
+  backdrop-filter: blur(14px) saturate(105%);
+  -webkit-backdrop-filter: blur(14px) saturate(105%);
+}
+
+/* Home */
+.tauri-desktop #screen-home .top {
+  margin-bottom: 16px;
+}
+
+.tauri-desktop .home-title {
+  color: #1b1b1b;
+  font-size: 34px;
+  font-weight: 650;
+  letter-spacing: -1px;
+}
+
+.tauri-desktop #screen-home .date-line {
+  margin-top: 2px;
+  color: #606060;
+  font-size: 12px;
+}
+
+.tauri-desktop .windows-only {
+  display: inline-flex;
+}
+
+.tauri-desktop .windows-command {
+  align-items: center;
+  gap: 7px;
+  min-height: 32px;
+  padding: 5px 10px;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  background: transparent;
+  color: #383838;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.tauri-desktop .windows-command-icon {
+  position: relative;
+  width: 14px;
+  height: 14px;
+  border: 1px solid currentColor;
+  border-radius: 2px;
+}
+
+.tauri-desktop .windows-command-icon::before,
+.tauri-desktop .windows-command-icon::after {
+  content: "";
+  position: absolute;
+  background: currentColor;
+  opacity: .72;
+}
+
+.tauri-desktop .windows-command-icon::before {
+  left: 4px;
+  top: 6px;
+  width: 2px;
+  height: 5px;
+}
+
+.tauri-desktop .windows-command-icon::after {
+  left: 8px;
+  top: 3px;
+  width: 2px;
+  height: 8px;
+}
+
+.tauri-desktop .today-tasks-card {
+  margin-bottom: 12px;
+  padding: 10px;
+  border-radius: 8px;
+}
+
+.tauri-desktop .h-tasks-head {
+  margin: 2px 4px 6px;
+  color: #5c5c5c;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+.tauri-desktop .h-task-item {
+  min-height: 42px;
+  padding: 5px 4px 5px 8px;
+  border-radius: 4px;
+}
+
+.tauri-desktop .h-task-name {
+  font-size: 13px;
+}
+
+.tauri-desktop .h-task-go,
+.tauri-desktop .pi-go,
+.tauri-desktop .pi-ship,
+.tauri-desktop .uf-ship {
+  min-height: 28px;
+  padding: 4px 10px;
+  border: 1px solid var(--accent);
+  border-radius: 4px;
+  background: var(--accent);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 500;
+}
+
+.tauri-desktop .h-task-done {
+  width: 24px;
+  height: 24px;
+  border: 1px solid rgba(0, 0, 0, .3);
+  border-radius: 4px;
+  background: rgba(255, 255, 255, .68);
+}
+
+.tauri-desktop .h-task-done::before {
+  font-size: 12px;
+}
+
+.tauri-desktop .home-actions {
+  flex-direction: row;
+  gap: 8px;
+  margin-bottom: 14px;
+}
+
+.tauri-desktop .home-actions .btn {
+  width: auto;
+  flex: 1;
+}
+
+.tauri-desktop .performance-card {
+  margin-bottom: 8px;
+  padding: 13px 14px 14px;
+  border-radius: 8px;
+}
+
+.tauri-desktop .performance-title,
+.tauri-desktop .dashboard-card-title {
+  margin-bottom: 14px;
+  color: #5c5c5c;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+.tauri-desktop .metric-block + .metric-block {
+  margin-top: 16px;
+}
+
+.tauri-desktop .metric-head {
+  margin-bottom: 7px;
+}
+
+.tauri-desktop .metric-name,
+.tauri-desktop .metric-value {
+  font-size: 12px;
+}
+
+.tauri-desktop .metric-track {
+  height: 5px;
+  border-radius: 3px;
+  background: rgba(0, 0, 0, .09);
+  box-shadow: none;
+}
+
+.tauri-desktop .metric-fill-quality {
+  background: #60a5fa;
+}
+
+.tauri-desktop .metric-fill-output {
+  background: rgba(0, 95, 184, .34);
+}
+
+.tauri-desktop .metric-fill-workload {
+  background: #b0794d;
+  border-radius: 3px;
+}
+
+.tauri-desktop .metric-legend {
+  margin-top: 7px;
+  font-size: 10px;
+}
+
+.tauri-desktop .dashboard-swipe-hint {
+  display: none;
+}
+
+.tauri-desktop .home-history {
+  align-self: center;
+  width: auto;
+  margin-top: 1px;
+}
+
+/* Secondary screens */
+.tauri-desktop .dashboard-head,
+.tauri-desktop .hist-top,
+.tauri-desktop .tl-header {
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.tauri-desktop .dashboard-card {
+  margin-bottom: 10px;
+  padding: 14px;
+  border-radius: 8px;
+}
+
+.tauri-desktop .dashboard-chart-wrap {
+  height: 190px;
+}
+
+.tauri-desktop .dashboard-legend {
+  gap: 5px;
+  margin-top: 9px;
+}
+
+.tauri-desktop .dur-row {
+  gap: 6px;
+  margin-bottom: 6px;
+}
+
+.tauri-desktop .dur-btn {
+  min-height: 34px;
+  padding: 6px 4px;
+  border: 1px solid rgba(0, 0, 0, .16);
+  border-bottom-color: rgba(0, 0, 0, .24);
+  border-radius: 4px;
+  background: rgba(255, 255, 255, .7);
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.tauri-desktop .dur-btn.selected {
+  border-color: var(--accent);
+  background: rgba(0, 95, 184, .09);
+  color: #004f99;
+}
+
+.tauri-desktop .timer-top {
+  text-align: left;
+}
+
+.tauri-desktop .timer-task-title {
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.tauri-desktop .timer-badge,
+.tauri-desktop .checkin-eta {
+  padding: 3px 8px;
+  border-radius: 4px;
+}
+
+.tauri-desktop .timer-digits,
+.tauri-desktop .break-digits {
+  font-family: "Segoe UI Variable Display", "Segoe UI", sans-serif;
+  font-size: 68px;
+  font-weight: 600;
+  letter-spacing: -2px;
+}
+
+.tauri-desktop .timer-btns,
+.tauri-desktop .za-btns {
+  gap: 8px;
+}
+
+.tauri-desktop .ci-header {
+  margin-bottom: 18px;
+  text-align: left;
+}
+
+.tauri-desktop .state-sliders {
+  gap: 12px;
+  margin: 14px 0 18px;
+}
+
+.tauri-desktop .state-slider-card {
+  padding: 13px 14px 11px;
+}
+
+.tauri-desktop .state-slider-head {
+  margin-bottom: 8px;
+}
+
+.tauri-desktop .state-slider-name {
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.tauri-desktop .state-slider-value {
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.tauri-desktop .state-result {
+  font-size: 17px;
+  font-weight: 600;
+}
+
+.tauri-desktop .tabs {
+  padding: 3px;
+  margin-bottom: 16px;
+  border-radius: 6px;
+}
+
+.tauri-desktop .tab {
+  min-height: 30px;
+  padding: 6px;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.tauri-desktop .tab.active {
+  border: 1px solid rgba(0, 0, 0, .1);
+  background: rgba(255, 255, 255, .92);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, .04);
+}
+
+.tauri-desktop .task-card,
+.tauri-desktop .day-card,
+.tauri-desktop .chart-box,
+.tauri-desktop .dist-box {
+  padding: 12px;
+  margin-bottom: 10px;
+}
+
+.tauri-desktop .plan-item,
+.tauri-desktop .plan-item-done {
+  padding: 9px 10px;
+  margin-bottom: 6px;
+}
+
+.tauri-desktop .pi-title {
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.tauri-desktop .pi-meta {
+  font-size: 11px;
+}
+
+.tauri-desktop .pi-stats {
+  font-size: 9px;
+}
+
+.tauri-desktop .pi-done-btn,
+.tauri-desktop .pi-del {
+  border-radius: 4px;
+}
+
+.tauri-desktop .summary-plan-actions {
+  flex-direction: row;
+  gap: 8px;
+}
+
+.tauri-desktop .summary-plan-actions .btn {
+  width: auto;
+  flex: 1;
+}
+
+.tauri-desktop .sum-title {
+  font-size: 21px;
+  font-weight: 600;
+}
+
+.tauri-desktop .toast {
+  bottom: 18px;
+  padding: 7px 12px;
+  border: 1px solid rgba(255, 255, 255, .16);
+  border-radius: 6px;
+  background: rgba(32, 32, 32, .94);
+  font-size: 12px;
+  transition-duration: 160ms;
+}
+
+@media (hover: hover) {
+  .tauri-desktop .btn:hover {
+    background: rgba(255, 255, 255, .92);
+  }
+
+  .tauri-desktop .btn-primary:hover,
+  .tauri-desktop .h-task-go:hover,
+  .tauri-desktop .pi-go:hover,
+  .tauri-desktop .uf-ship:hover {
+    background: #196ec0;
+    border-color: #196ec0;
+    color: #fff;
+  }
+
+  .tauri-desktop .btn-ghost:hover,
+  .tauri-desktop .back-btn:hover,
+  .tauri-desktop .windows-command:hover {
+    background: rgba(0, 0, 0, .055);
+  }
+
+  .tauri-desktop .h-task-item:hover,
+  .tauri-desktop .plan-item:hover {
+    background: rgba(0, 0, 0, .035);
+  }
+}

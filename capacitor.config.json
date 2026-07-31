@@ -1,0 +1,14 @@
+{
+  "appId": "com.summonpoet.shiptotoday",
+  "appName": "Ship to Today",
+  "webDir": "dist-ios",
+  "ios": {
+    "contentInset": "always",
+    "preferredContentMode": "mobile"
+  },
+  "plugins": {
+    "LocalNotifications": {
+      "presentationOptions": ["sound", "banner", "list"]
+    }
+  }
+}

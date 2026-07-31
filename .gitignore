@@ -1,0 +1,9 @@
+node_modules/
+dist/
+dist-ios/
+release/
+.publish-shiptotoday/
+src-tauri/target/
+src-tauri/gen/
+*.log
+tauri-window*.png

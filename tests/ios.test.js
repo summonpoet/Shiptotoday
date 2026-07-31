@@ -1,0 +1,45 @@
+const test = require('node:test');
+const assert = require('node:assert/strict');
+const fs = require('fs');
+
+const config = JSON.parse(fs.readFileSync('capacitor.config.json', 'utf8'));
+const packageJson = JSON.parse(fs.readFileSync('package.json', 'utf8'));
+const platform = fs.readFileSync('src/platform-browser.js', 'utf8');
+const app = fs.readFileSync('src/app.js', 'utf8');
+const build = fs.readFileSync('scripts/build-ios-web.js', 'utf8');
+const iosStyles = fs.readFileSync('src/platform-ios.css', 'utf8');
+
+test('Capacitor iOS shell uses a separate shared-code build', () => {
+  assert.equal(config.appName, 'Ship to Today');
+  assert.equal(config.appId, 'com.summonpoet.shiptotoday');
+  assert.equal(config.webDir, 'dist-ios');
+  assert.match(config.appId, /^[a-zA-Z][a-zA-Z0-9]*(\.[a-zA-Z0-9]+)+$/);
+  assert.match(packageJson.scripts['ios:sync'], /cap sync ios/);
+  assert.match(build, /capacitor-local-notifications\.js/);
+  assert.match(build, /data-native-shell="ios"/);
+});
+
+test('iOS adapter uses native lifecycle and scheduled local notifications', () => {
+  assert.match(platform, /global\.Capacitor\.isNativePlatform\(\)/);
+  assert.match(platform, /localNotifications\.requestPermissions\(\)/);
+  assert.match(platform, /localNotifications\.schedule\(\{/);
+  assert.match(platform, /capacitorApp\.addListener\('appStateChange'/);
+  assert.match(platform, /localNotificationActionPerformed/);
+  assert.match(platform, /idleAt:\(\) => suspended \? Infinity/);
+  assert.match(config.plugins.LocalNotifications.presentationOptions.join(','), /sound,banner,list/);
+});
+
+test('active focus sessions persist and recover after process suspension', () => {
+  assert.match(app, /ACTIVE_SESSION_KEY = 'ddz_active_session_v1'/);
+  assert.match(app, /function persistActiveSession\(\)/);
+  assert.match(app, /function restoreActiveSession\(\)/);
+  assert.match(app, /advanceTimerTo\(Date\.now\(\)\)/);
+  assert.match(app, /DDZPlatform\.lifecycle\.onPause/);
+  assert.match(app, /scheduleNextSessionEvent/);
+});
+
+test('iOS visuals account for safe areas and native touch targets', () => {
+  assert.match(iosStyles, /env\(safe-area-inset-top\)/);
+  assert.match(iosStyles, /env\(safe-area-inset-bottom\)/);
+  assert.match(iosStyles, /min-height: 44px/);
+});
