@@ -1,0 +1,29 @@
+workflows:
+  ios-simulator:
+    name: Ship to Today · iOS simulator validation
+    instance_type: mac_mini_m2
+    max_build_duration: 60
+    environment:
+      node: latest
+      xcode: latest
+    cache:
+      cache_paths:
+        - $HOME/.npm
+        - $HOME/Library/Caches/org.swift.swiftpm
+    scripts:
+      - name: Install JavaScript dependencies
+        script: npm ci
+      - name: Sync shared web app into Capacitor iOS
+        script: npm run ios:sync
+      - name: Compile unsigned iOS simulator app
+        script: |
+          xcodebuild \
+            -project ios/App/App.xcodeproj \
+            -scheme App \
+            -configuration Debug \
+            -sdk iphonesimulator \
+            -derivedDataPath build/ios-simulator \
+            CODE_SIGNING_ALLOWED=NO \
+            build
+    artifacts:
+      - build/ios-simulator/Build/Products/Debug-iphonesimulator/App.app

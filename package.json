@@ -1,0 +1,33 @@
+{
+  "name": "dingding-zones",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Shared web core for DingDing Zones browser, Windows and iOS shells",
+  "scripts": {
+    "pretest": "npm run sync:web-public",
+    "test": "node --test tests/*.test.js",
+    "serve": "node scripts/serve.js",
+    "sync:web-public": "node scripts/sync-public-web.js",
+    "prepare-vendor": "node scripts/prepare-vendor.js",
+    "build:web": "node scripts/build-web.js",
+    "build:ios-web": "node scripts/build-ios-web.js",
+    "build:all": "npm test && npm run build:web && npm run ios:sync && npm --prefix web-easy run build",
+    "ios:add": "npm run build:ios-web && cap add ios && node scripts/fix-capacitor-ios-paths.js",
+    "ios:sync": "npm run build:ios-web && cap sync ios && node scripts/fix-capacitor-ios-paths.js",
+    "desktop:dev": "tauri dev",
+    "desktop:check": "npm run build:web && cargo check --manifest-path src-tauri/Cargo.toml",
+    "desktop:build": "tauri build --no-bundle"
+  },
+  "dependencies": {
+    "@capacitor/app": "^8.1.1",
+    "@capacitor/core": "^8.4.2",
+    "@capacitor/ios": "^8.4.2",
+    "@capacitor/local-notifications": "^8.2.1",
+    "@fontsource/inter": "5.2.5",
+    "chart.js": "4.4.0"
+  },
+  "devDependencies": {
+    "@capacitor/cli": "^8.4.2",
+    "@tauri-apps/cli": "2.8.4"
+  }
+}
