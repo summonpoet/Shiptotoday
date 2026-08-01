@@ -51,6 +51,10 @@ test('iPad declares every orientation required for multitasking uploads', () => 
   assert.match(infoPlist, /UIInterfaceOrientationLandscapeRight/);
 });
 
+test('iOS declares that the app does not use non-exempt encryption', () => {
+  assert.match(infoPlist, /<key>ITSAppUsesNonExemptEncryption<\/key>\s*<false\/>/);
+});
+
 test('Codemagic includes an isolated signed TestFlight workflow', () => {
   assert.match(codemagic, /ios-testflight:/);
   assert.match(codemagic, /app_store_connect: ship-to-today-testflight/);
