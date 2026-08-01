@@ -8,6 +8,7 @@ const platform = fs.readFileSync('src/platform-browser.js', 'utf8');
 const app = fs.readFileSync('src/app.js', 'utf8');
 const build = fs.readFileSync('scripts/build-ios-web.js', 'utf8');
 const iosStyles = fs.readFileSync('src/platform-ios.css', 'utf8');
+const codemagic = fs.readFileSync('codemagic.yaml', 'utf8');
 
 test('Capacitor iOS shell uses a separate shared-code build', () => {
   assert.equal(config.appName, 'Ship to Today');
@@ -42,4 +43,14 @@ test('iOS visuals account for safe areas and native touch targets', () => {
   assert.match(iosStyles, /env\(safe-area-inset-top\)/);
   assert.match(iosStyles, /env\(safe-area-inset-bottom\)/);
   assert.match(iosStyles, /min-height: 44px/);
+});
+
+test('Codemagic includes an isolated signed TestFlight workflow', () => {
+  assert.match(codemagic, /ios-testflight:/);
+  assert.match(codemagic, /app_store_connect: ship-to-today-testflight/);
+  assert.match(codemagic, /distribution_type: app_store/);
+  assert.match(codemagic, /bundle_identifier: com\.summonpoet\.shiptotoday/);
+  assert.match(codemagic, /testFlightInternalTestingOnly/);
+  assert.match(codemagic, /xcode-project build-ipa/);
+  assert.match(codemagic, /auth: integration/);
 });
