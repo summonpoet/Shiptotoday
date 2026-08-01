@@ -8,6 +8,7 @@ const platform = fs.readFileSync('src/platform-browser.js', 'utf8');
 const app = fs.readFileSync('src/app.js', 'utf8');
 const build = fs.readFileSync('scripts/build-ios-web.js', 'utf8');
 const iosStyles = fs.readFileSync('src/platform-ios.css', 'utf8');
+const infoPlist = fs.readFileSync('ios/App/App/Info.plist', 'utf8');
 const codemagic = fs.readFileSync('codemagic.yaml', 'utf8');
 
 test('Capacitor iOS shell uses a separate shared-code build', () => {
@@ -43,6 +44,11 @@ test('iOS visuals account for safe areas and native touch targets', () => {
   assert.match(iosStyles, /env\(safe-area-inset-top\)/);
   assert.match(iosStyles, /env\(safe-area-inset-bottom\)/);
   assert.match(iosStyles, /min-height: 44px/);
+});
+
+test('iPad declares every orientation required for multitasking uploads', () => {
+  assert.match(infoPlist, /UIInterfaceOrientationLandscapeLeft/);
+  assert.match(infoPlist, /UIInterfaceOrientationLandscapeRight/);
 });
 
 test('Codemagic includes an isolated signed TestFlight workflow', () => {
