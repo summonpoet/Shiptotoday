@@ -184,6 +184,7 @@ function beginTask() {
   pendingPlanId = null;
   nav('timer');
   drawTimer();
+  startFocusLiveActivity();
   startTicker();
 }
 
@@ -248,6 +249,7 @@ function startTicker() {
   tickerWorker = DDZPlatform.timers.createPulse(() => tick());
   persistActiveSession();
   scheduleNextSessionEvent();
+  updateFocusLiveActivity();
 }
 
 function advanceTimerTo(targetMs) {
@@ -305,6 +307,7 @@ function enterAway(source, startedAtMs = Date.now()) {
   }
   persistActiveSession();
   drawTimer();
+  updateFocusLiveActivity(source === 'auto' ? 'Away' : 'Paused', false);
 }
 
 function closeAway(endedAtMs = Date.now()) {
@@ -476,6 +479,39 @@ function scheduleNextSessionEvent() {
   }).catch(() => {});
 }
 
+function focusLiveActivityPayload(statusOverride, runningOverride) {
+  if (!task) return null;
+  const countsDown = task.mode !== 'countup';
+  const seconds = Math.max(0, Math.ceil(countsDown ? task.remSecs : task.flowSecs));
+  const isRunning = runningOverride === undefined ? !task.isPaused : Boolean(runningOverride);
+  const status = statusOverride || (task.isPaused
+    ? (task.pauseKind === 'auto' ? 'Away' : 'Paused')
+    : (countsDown ? 'Focus' : 'Flow'));
+  return {
+    taskID:task.id,
+    taskName:task.title,
+    timerDate:countsDown ? Date.now() + seconds * 1000 : Date.now() - seconds * 1000,
+    seconds,
+    isRunning,
+    countsDown,
+    status,
+  };
+}
+
+function startFocusLiveActivity(statusOverride, runningOverride) {
+  const payload = focusLiveActivityPayload(statusOverride, runningOverride);
+  if (payload) DDZPlatform.liveActivity.start(payload).catch(() => {});
+}
+
+function updateFocusLiveActivity(statusOverride, runningOverride) {
+  const payload = focusLiveActivityPayload(statusOverride, runningOverride);
+  if (payload) DDZPlatform.liveActivity.update(payload).catch(() => {});
+}
+
+function endFocusLiveActivity(taskID) {
+  DDZPlatform.liveActivity.end(taskID).catch(() => {});
+}
+
 // ─────────────────────────────────────────────
 // SOUND  ← Change #3
 // Two-tone chime when the check-in input appears.
@@ -530,6 +566,7 @@ function openCheckin(src, suppressNotification = false) {
   nav('checkin');
   startCheckinAutoSubmit();
   persistActiveSession();
+  updateFocusLiveActivity('Check-in', false);
   if (src === 'scheduled' && !suppressNotification) showCheckInNotification();
   playCheckInSound();
 }
@@ -667,6 +704,7 @@ function showZoneAction(zone) {
     btnsEl.innerHTML = `<button class="btn btn-primary" onclick="backToTimer()">Continue</button>`;
   }
   persistActiveSession();
+  updateFocusLiveActivity(cap(zone), false);
 }
 
 function backToTimer() {
@@ -714,6 +752,7 @@ function startBreakFlow() {
   drawBreak();
   startBreakTicker();
   persistActiveSession();
+  updateFocusLiveActivity('Break', false);
 }
 
 function drawBreak()  { document.getElementById('b-digits').textContent = fmt(breakSecs); }
@@ -777,6 +816,7 @@ function finishTask() {
     breaks:        task.breaks,
     awayPeriods:   task.awayPeriods,
   };
+  endFocusLiveActivity(task.id);
   persistTask(saved);   // save first, before any rendering that could throw
   if (saved.planId) addSessionEffortToPlan(saved);
   task = null;          // clear task so re-entrant calls are harmless
@@ -1191,6 +1231,13 @@ function restoreActiveSession() {
   task.breaks = Array.isArray(task.breaks) ? task.breaks : [];
   task.lastTickAt = Number(task.lastTickAt) || Number(saved.savedAt) || Date.now();
   pendingSrc = saved.pendingSrc || null;
+
+  const restoredStatus = task.isPaused
+    ? (task.pauseKind === 'auto' ? 'Away' : 'Paused')
+    : saved.screen === 'checkin' ? 'Check-in'
+      : saved.screen === 'break' ? 'Break'
+        : task.mode === 'countup' ? 'Flow' : 'Focus';
+  startFocusLiveActivity(restoredStatus, saved.screen === 'timer' && !task.isPaused);
 
   if (_splashTimer) {
     clearTimeout(_splashTimer);
@@ -1864,5 +1911,14 @@ DDZPlatform.lifecycle.onPause(() => {
   if (tickerWorker) advanceTimerTo(Date.now());
   persistActiveSession();
   scheduleNextSessionEvent();
+});
+DDZPlatform.lifecycle.onOpenUrl(url => {
+  if (!String(url || '').startsWith('shiptotoday://timer')) return;
+  if (!task) restoreActiveSession();
+  dismissSplash();
+  if (task) {
+    nav('timer');
+    drawTimer();
+  }
 });
 initApp();

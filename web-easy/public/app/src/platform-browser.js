@@ -14,6 +14,7 @@
     : {};
   const localNotifications = capacitorPlugins.LocalNotifications;
   const capacitorApp = capacitorPlugins.App;
+  const focusLiveActivity = capacitorPlugins.FocusLiveActivity;
   const isLocalWindowsPreview =
     /^(localhost|127\.0\.0\.1)$/.test(global.location.hostname) &&
     new URLSearchParams(global.location.search).get('platform') === 'windows';
@@ -184,8 +185,42 @@
     },
   };
 
+  const liveActivity = {
+    async start(state) {
+      if (!isCapacitor || !focusLiveActivity) return false;
+      try {
+        const result = await focusLiveActivity.start(state);
+        return result && result.enabled !== false;
+      } catch(e) {
+        console.warn('start Live Activity:', e);
+        return false;
+      }
+    },
+    async update(state) {
+      if (!isCapacitor || !focusLiveActivity) return false;
+      try {
+        const result = await focusLiveActivity.update(state);
+        return Boolean(result && result.updated);
+      } catch(e) {
+        console.warn('update Live Activity:', e);
+        return false;
+      }
+    },
+    async end(taskID) {
+      if (!isCapacitor || !focusLiveActivity) return false;
+      try {
+        await focusLiveActivity.end(taskID ? {taskID} : {});
+        return true;
+      } catch(e) {
+        console.warn('end Live Activity:', e);
+        return false;
+      }
+    },
+  };
+
   const resumeCallbacks = new Set();
   const pauseCallbacks = new Set();
+  const openUrlCallbacks = new Set();
   const lifecycle = {
     onResume(callback) {
       resumeCallbacks.add(callback);
@@ -200,6 +235,9 @@
         if (document.hidden) callback();
       });
       global.addEventListener('blur', callback);
+    },
+    onOpenUrl(callback) {
+      openUrlCallbacks.add(callback);
     },
   };
 
@@ -295,6 +333,15 @@
           resumeCallbacks.forEach(callback => callback());
         });
       }
+      await capacitorApp.addListener('appUrlOpen', ({url}) => {
+        openUrlCallbacks.forEach(callback => callback(url));
+      });
+      try {
+        const launch = await capacitorApp.getLaunchUrl();
+        if (launch && launch.url) {
+          openUrlCallbacks.forEach(callback => callback(launch.url));
+        }
+      } catch(e) {}
       return;
     }
     if (isTauri) return;
@@ -305,6 +352,6 @@
 
   global.DDZPlatform = Object.freeze({
     runtime:isCapacitor ? 'capacitor-ios' : (isTauri ? 'tauri' : 'browser'),
-    storage, timers:{createPulse}, notifications, lifecycle, activity, init,
+    storage, timers:{createPulse}, notifications, liveActivity, lifecycle, activity, init,
   });
 })(globalThis);

@@ -9,6 +9,10 @@ const app = fs.readFileSync('src/app.js', 'utf8');
 const build = fs.readFileSync('scripts/build-ios-web.js', 'utf8');
 const iosStyles = fs.readFileSync('src/platform-ios.css', 'utf8');
 const infoPlist = fs.readFileSync('ios/App/App/Info.plist', 'utf8');
+const xcodeProject = fs.readFileSync('ios/App/App.xcodeproj/project.pbxproj', 'utf8');
+const storyboard = fs.readFileSync('ios/App/App/Base.lproj/Main.storyboard', 'utf8');
+const liveActivityPlugin = fs.readFileSync('ios/App/App/FocusLiveActivityPlugin.swift', 'utf8');
+const liveActivityWidget = fs.readFileSync('ios/App/ShipToTodayLiveActivity/FocusLiveActivity.swift', 'utf8');
 const codemagic = fs.readFileSync('codemagic.yaml', 'utf8');
 
 test('Capacitor iOS shell uses a separate shared-code build', () => {
@@ -38,6 +42,45 @@ test('active focus sessions persist and recover after process suspension', () =>
   assert.match(app, /advanceTimerTo\(Date\.now\(\)\)/);
   assert.match(app, /DDZPlatform\.lifecycle\.onPause/);
   assert.match(app, /scheduleNextSessionEvent/);
+});
+
+test('iOS focus sessions bridge every Live Activity lifecycle state', () => {
+  assert.match(platform, /capacitorPlugins\.FocusLiveActivity/);
+  assert.match(platform, /focusLiveActivity\.start\(state\)/);
+  assert.match(platform, /focusLiveActivity\.update\(state\)/);
+  assert.match(platform, /focusLiveActivity\.end\(/);
+  assert.match(platform, /capacitorApp\.addListener\('appUrlOpen'/);
+  assert.match(app, /startFocusLiveActivity\(\)/);
+  assert.match(app, /updateFocusLiveActivity\(source === 'auto' \? 'Away' : 'Paused', false\)/);
+  assert.match(app, /updateFocusLiveActivity\('Check-in', false\)/);
+  assert.match(app, /updateFocusLiveActivity\('Break', false\)/);
+  assert.match(app, /endFocusLiveActivity\(task\.id\)/);
+  assert.match(app, /shiptotoday:\/\/timer/);
+});
+
+test('Live Activity renders countdown, expanded state, lock screen and deep link', () => {
+  assert.match(liveActivityPlugin, /ActivityAuthorizationInfo\(\)\.areActivitiesEnabled/);
+  assert.match(liveActivityPlugin, /Activity<FocusActivityAttributes>\.activities/);
+  assert.match(liveActivityPlugin, /dismissalPolicy: \.immediate/);
+  assert.match(liveActivityWidget, /ActivityConfiguration\(for: FocusActivityAttributes\.self\)/);
+  assert.match(liveActivityWidget, /DynamicIslandExpandedRegion\(\.bottom\)/);
+  assert.match(liveActivityWidget, /compactLeading:/);
+  assert.match(liveActivityWidget, /compactTrailing:/);
+  assert.match(liveActivityWidget, /minimal:/);
+  assert.match(liveActivityWidget, /Text\(timerInterval:/);
+  assert.match(liveActivityWidget, /shiptotoday:\/\/timer/);
+  assert.match(liveActivityWidget, /case "Away"/);
+  assert.match(liveActivityWidget, /case "Paused", "Check-in", "Break"/);
+});
+
+test('Xcode embeds a signed Live Activity widget extension', () => {
+  assert.match(infoPlist, /<key>NSSupportsLiveActivities<\/key>\s*<true\/>/);
+  assert.match(infoPlist, /<string>shiptotoday<\/string>/);
+  assert.match(storyboard, /customClass="BridgeViewController"/);
+  assert.match(xcodeProject, /ShipToTodayLiveActivityExtension\.appex in Embed App Extensions/);
+  assert.match(xcodeProject, /productType = "com\.apple\.product-type\.app-extension"/);
+  assert.match(xcodeProject, /PRODUCT_BUNDLE_IDENTIFIER = com\.summonpoet\.shiptotoday\.liveactivity/);
+  assert.match(xcodeProject, /IPHONEOS_DEPLOYMENT_TARGET = 16\.2/);
 });
 
 test('iOS visuals account for safe areas and native touch targets', () => {
