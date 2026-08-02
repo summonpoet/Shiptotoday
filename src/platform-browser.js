@@ -14,7 +14,6 @@
     : {};
   const localNotifications = capacitorPlugins.LocalNotifications;
   const capacitorApp = capacitorPlugins.App;
-  const focusLiveActivity = capacitorPlugins.FocusLiveActivity;
   const isLocalWindowsPreview =
     /^(localhost|127\.0\.0\.1)$/.test(global.location.hostname) &&
     new URLSearchParams(global.location.search).get('platform') === 'windows';
@@ -187,6 +186,7 @@
 
   const liveActivity = {
     async start(state) {
+      const focusLiveActivity = global.Capacitor?.Plugins?.FocusLiveActivity;
       if (!isCapacitor || !focusLiveActivity) return false;
       try {
         const result = await focusLiveActivity.start(state);
@@ -197,6 +197,7 @@
       }
     },
     async update(state) {
+      const focusLiveActivity = global.Capacitor?.Plugins?.FocusLiveActivity;
       if (!isCapacitor || !focusLiveActivity) return false;
       try {
         const result = await focusLiveActivity.update(state);
@@ -207,6 +208,7 @@
       }
     },
     async end(taskID) {
+      const focusLiveActivity = global.Capacitor?.Plugins?.FocusLiveActivity;
       if (!isCapacitor || !focusLiveActivity) return false;
       try {
         await focusLiveActivity.end(taskID ? {taskID} : {});

@@ -11,6 +11,7 @@ const iosStyles = fs.readFileSync('src/platform-ios.css', 'utf8');
 const infoPlist = fs.readFileSync('ios/App/App/Info.plist', 'utf8');
 const xcodeProject = fs.readFileSync('ios/App/App.xcodeproj/project.pbxproj', 'utf8');
 const storyboard = fs.readFileSync('ios/App/App/Base.lproj/Main.storyboard', 'utf8');
+const bridgeViewController = fs.readFileSync('ios/App/App/BridgeViewController.swift', 'utf8');
 const liveActivityPlugin = fs.readFileSync('ios/App/App/FocusLiveActivityPlugin.swift', 'utf8');
 const liveActivityWidget = fs.readFileSync('ios/App/ShipToTodayLiveActivity/FocusLiveActivity.swift', 'utf8');
 const codemagic = fs.readFileSync('codemagic.yaml', 'utf8');
@@ -45,7 +46,7 @@ test('active focus sessions persist and recover after process suspension', () =>
 });
 
 test('iOS focus sessions bridge every Live Activity lifecycle state', () => {
-  assert.match(platform, /capacitorPlugins\.FocusLiveActivity/);
+  assert.match(platform, /global\.Capacitor\?\.Plugins\?\.FocusLiveActivity/);
   assert.match(platform, /focusLiveActivity\.start\(state\)/);
   assert.match(platform, /focusLiveActivity\.update\(state\)/);
   assert.match(platform, /focusLiveActivity\.end\(/);
@@ -56,6 +57,8 @@ test('iOS focus sessions bridge every Live Activity lifecycle state', () => {
   assert.match(app, /updateFocusLiveActivity\('Break', false\)/);
   assert.match(app, /endFocusLiveActivity\(task\.id\)/);
   assert.match(app, /shiptotoday:\/\/timer/);
+  assert.match(bridgeViewController, /registerPluginInstance\(FocusLiveActivityPlugin\(\)\)/);
+  assert.doesNotMatch(bridgeViewController, /registerPluginType\(FocusLiveActivityPlugin\.self\)/);
 });
 
 test('Live Activity renders countdown, expanded state, lock screen and deep link', () => {
