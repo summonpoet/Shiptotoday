@@ -483,6 +483,10 @@ function focusLiveActivityPayload(statusOverride, runningOverride) {
   if (!task) return null;
   const countsDown = task.mode !== 'countup';
   const seconds = Math.max(0, Math.ceil(countsDown ? task.remSecs : task.flowSecs));
+  const hasNextCheckIn = countsDown && task.ciIdx < task.ciPoints.length;
+  const nextCheckInSeconds = hasNextCheckIn
+    ? Math.max(0, Math.ceil(task.ciPoints[task.ciIdx] - task.workSecs))
+    : null;
   const isRunning = runningOverride === undefined ? !task.isPaused : Boolean(runningOverride);
   const status = statusOverride || (task.isPaused
     ? (task.pauseKind === 'auto' ? 'Away' : 'Paused')
@@ -492,6 +496,10 @@ function focusLiveActivityPayload(statusOverride, runningOverride) {
     taskName:task.title,
     timerDate:countsDown ? Date.now() + seconds * 1000 : Date.now() - seconds * 1000,
     seconds,
+    nextCheckInDate:nextCheckInSeconds == null
+      ? null
+      : Date.now() + nextCheckInSeconds * 1000,
+    nextCheckInSeconds,
     isRunning,
     countsDown,
     status,

@@ -70,7 +70,12 @@ test('Live Activity renders countdown, expanded state, lock screen and deep link
   assert.match(liveActivityWidget, /compactLeading:/);
   assert.match(liveActivityWidget, /compactTrailing:/);
   assert.match(liveActivityWidget, /minimal:/);
-  assert.match(liveActivityWidget, /Text\(timerInterval:/);
+  assert.match(liveActivityWidget, /Text\(state\.timerDate, style: \.timer\)/);
+  assert.match(liveActivityWidget, /CheckInTimerText/);
+  assert.match(liveActivityWidget, /frame\(width: 46, alignment: \.center\)/);
+  assert.match(liveActivityWidget, /foregroundStyle\(\.blue\)/);
+  assert.match(liveActivityWidget, /foregroundStyle\(\.green\)/);
+  assert.match(app, /nextCheckInSeconds/);
   assert.match(liveActivityWidget, /shiptotoday:\/\/timer/);
   assert.match(liveActivityWidget, /case "Away"/);
   assert.match(liveActivityWidget, /case "Paused", "Check-in", "Break"/);

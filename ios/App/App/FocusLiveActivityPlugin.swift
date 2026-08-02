@@ -106,6 +106,10 @@ public class FocusLiveActivityPlugin: CAPPlugin, CAPBridgedPlugin {
         return FocusActivityAttributes.ContentState(
             timerDate: Date(timeIntervalSince1970: timerDateMs / 1000),
             seconds: max(0, seconds),
+            nextCheckInDate: call.getDouble("nextCheckInDate").map {
+                Date(timeIntervalSince1970: $0 / 1000)
+            },
+            nextCheckInSeconds: call.getInt("nextCheckInSeconds").map { max(0, $0) },
             isRunning: isRunning,
             countsDown: countsDown,
             status: status

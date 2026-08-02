@@ -26,17 +26,42 @@ struct FocusLiveActivity: Widget {
                         Text(context.attributes.taskName)
                             .font(.headline)
                             .lineLimit(1)
-                        FocusTimerText(state: context.state, font: .system(size: 34, weight: .semibold, design: .rounded))
+                        HStack(alignment: .firstTextBaseline) {
+                            LabeledTimer(
+                                label: "Total",
+                                color: .blue,
+                                content: {
+                                    FocusTimerText(
+                                        state: context.state,
+                                        font: .system(size: 30, weight: .semibold, design: .rounded)
+                                    )
+                                }
+                            )
+                            Spacer()
+                            LabeledTimer(
+                                label: "Next check-in",
+                                color: .green,
+                                content: {
+                                    CheckInTimerText(
+                                        state: context.state,
+                                        font: .system(size: 30, weight: .semibold, design: .rounded)
+                                    )
+                                }
+                            )
+                        }
                     }
                     .frame(maxWidth: .infinity, alignment: .leading)
                 }
             } compactLeading: {
-                Image(systemName: "timer")
-                    .foregroundStyle(.blue)
-                    .accessibilityLabel("Focus timer")
-            } compactTrailing: {
                 FocusTimerText(state: context.state, font: .caption.monospacedDigit())
-                    .frame(minWidth: 42)
+                    .foregroundStyle(.blue)
+                    .frame(width: 46, alignment: .center)
+                    .accessibilityLabel("Total time remaining")
+            } compactTrailing: {
+                CheckInTimerText(state: context.state, font: .caption.monospacedDigit())
+                    .foregroundStyle(.green)
+                    .frame(width: 46, alignment: .center)
+                    .accessibilityLabel("Time until next check-in")
             } minimal: {
                 Image(systemName: context.state.isRunning ? "timer" : "pause.fill")
                     .foregroundStyle(context.state.isRunning ? .blue : .orange)
@@ -68,7 +93,15 @@ private struct LockScreenFocusView: View {
                     .foregroundStyle(.secondary)
             }
             Spacer(minLength: 10)
-            FocusTimerText(state: context.state, font: .system(size: 32, weight: .semibold, design: .rounded))
+            VStack(alignment: .trailing, spacing: 2) {
+                FocusTimerText(
+                    state: context.state,
+                    font: .system(size: 28, weight: .semibold, design: .rounded)
+                )
+                .foregroundStyle(.blue)
+                CheckInTimerText(state: context.state, font: .caption.monospacedDigit())
+                    .foregroundStyle(.green)
+            }
         }
         .padding(.vertical, 4)
         .accessibilityElement(children: .combine)
@@ -83,7 +116,7 @@ private struct FocusTimerText: View {
     var body: some View {
         Group {
             if state.isRunning && state.countsDown {
-                Text(timerInterval: Date.now...max(state.timerDate, Date.now), countsDown: true)
+                Text(state.timerDate, style: .timer)
             } else if state.isRunning {
                 Text(state.timerDate, style: .timer)
             } else {
@@ -104,6 +137,63 @@ private struct FocusTimerText: View {
             return String(format: "%d:%02d:%02d", hours, minutes, seconds)
         }
         return String(format: "%02d:%02d", minutes, seconds)
+    }
+}
+
+@available(iOSApplicationExtension 16.2, *)
+private struct CheckInTimerText: View {
+    let state: FocusActivityAttributes.ContentState
+    let font: Font
+
+    var body: some View {
+        Group {
+            if let seconds = state.nextCheckInSeconds,
+               let date = state.nextCheckInDate {
+                if state.isRunning {
+                    Text(date, style: .timer)
+                } else {
+                    Text(formattedSeconds(seconds))
+                }
+            } else {
+                Text("--:--")
+            }
+        }
+        .font(font)
+        .monospacedDigit()
+        .lineLimit(1)
+        .minimumScaleFactor(0.72)
+    }
+
+    private func formattedSeconds(_ total: Int) -> String {
+        let hours = total / 3600
+        let minutes = (total % 3600) / 60
+        let seconds = total % 60
+        if hours > 0 {
+            return String(format: "%d:%02d:%02d", hours, minutes, seconds)
+        }
+        return String(format: "%02d:%02d", minutes, seconds)
+    }
+}
+
+@available(iOSApplicationExtension 16.2, *)
+private struct LabeledTimer<Content: View>: View {
+    let label: String
+    let color: Color
+    let content: Content
+
+    init(label: String, color: Color, @ViewBuilder content: () -> Content) {
+        self.label = label
+        self.color = color
+        self.content = content()
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 2) {
+            Text(label)
+                .font(.caption2)
+                .foregroundStyle(.secondary)
+            content.foregroundStyle(color)
+        }
     }
 }
 

@@ -6,6 +6,8 @@ struct FocusActivityAttributes: ActivityAttributes {
     struct ContentState: Codable, Hashable {
         let timerDate: Date
         let seconds: Int
+        let nextCheckInDate: Date?
+        let nextCheckInSeconds: Int?
         let isRunning: Bool
         let countsDown: Bool
         let status: String
