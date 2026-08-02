@@ -116,7 +116,10 @@ private struct FocusTimerText: View {
     var body: some View {
         Group {
             if state.isRunning && state.countsDown {
-                ClampedCountdownText(endDate: state.timerDate)
+                ClampedCountdownText(
+                    endDate: state.timerDate,
+                    pauseDate: state.nextCheckInDate
+                )
             } else if state.isRunning {
                 Text(state.timerDate, style: .timer)
             } else {
@@ -150,7 +153,7 @@ private struct CheckInTimerText: View {
             if let seconds = state.nextCheckInSeconds,
                let date = state.nextCheckInDate {
                 if state.isRunning {
-                    ClampedCountdownText(endDate: date)
+                    ClampedCountdownText(endDate: date, pauseDate: nil)
                 } else {
                     Text(formattedSeconds(seconds))
                 }
@@ -178,6 +181,7 @@ private struct CheckInTimerText: View {
 @available(iOSApplicationExtension 16.2, *)
 private struct ClampedCountdownText: View {
     let endDate: Date
+    let pauseDate: Date?
 
     var body: some View {
         // `Text(date, style: .timer)` starts counting upward after `date`.
@@ -185,6 +189,7 @@ private struct ClampedCountdownText: View {
         // projection of the app deadline until the app publishes a new state.
         Text(
             timerInterval: Date.distantPast...endDate,
+            pauseTime: pauseDate,
             countsDown: true,
             showsHours: false
         )

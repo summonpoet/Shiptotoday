@@ -10,6 +10,9 @@ notifications, check-ins, Away, or Live Activity UI.
   once per second without stalls, duplicated seconds, or jumps.
 - [ ] Put the app in the background for at least 20 seconds. Both Dynamic
   Island values continue: blue total time and green next check-in time.
+- [ ] Keep the app backgrounded through a check-in boundary. Green clamps at
+  `00:00`, blue freezes at the total remaining at that boundary, and neither
+  value starts counting upward.
 - [ ] Tap the Dynamic Island to return, background the app, then tap it again.
   The app and Dynamic Island still update every second after the second entry.
 - [ ] Leave the app backgrounded across a scheduled check-in. The notification

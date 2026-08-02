@@ -80,9 +80,10 @@ test('Live Activity renders countdown, expanded state, lock screen and deep link
   assert.match(liveActivityWidget, /compactLeading:/);
   assert.match(liveActivityWidget, /compactTrailing:/);
   assert.match(liveActivityWidget, /minimal:/);
-  assert.match(liveActivityWidget, /ClampedCountdownText\(endDate: state\.timerDate\)/);
-  assert.match(liveActivityWidget, /ClampedCountdownText\(endDate: date\)/);
+  assert.match(liveActivityWidget, /endDate: state\.timerDate,\s*pauseDate: state\.nextCheckInDate/);
+  assert.match(liveActivityWidget, /ClampedCountdownText\(endDate: date, pauseDate: nil\)/);
   assert.match(liveActivityWidget, /timerInterval: Date\.distantPast\.\.\.endDate/);
+  assert.match(liveActivityWidget, /pauseTime: pauseDate/);
   assert.match(liveActivityWidget, /countsDown: true/);
   assert.match(liveActivityWidget, /CheckInTimerText/);
   assert.match(liveActivityWidget, /frame\(width: 46, alignment: \.center\)/);
