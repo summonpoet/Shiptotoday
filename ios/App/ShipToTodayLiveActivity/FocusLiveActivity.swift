@@ -116,7 +116,7 @@ private struct FocusTimerText: View {
     var body: some View {
         Group {
             if state.isRunning && state.countsDown {
-                Text(state.timerDate, style: .timer)
+                ClampedCountdownText(endDate: state.timerDate)
             } else if state.isRunning {
                 Text(state.timerDate, style: .timer)
             } else {
@@ -150,7 +150,7 @@ private struct CheckInTimerText: View {
             if let seconds = state.nextCheckInSeconds,
                let date = state.nextCheckInDate {
                 if state.isRunning {
-                    Text(date, style: .timer)
+                    ClampedCountdownText(endDate: date)
                 } else {
                     Text(formattedSeconds(seconds))
                 }
@@ -172,6 +172,22 @@ private struct CheckInTimerText: View {
             return String(format: "%d:%02d:%02d", hours, minutes, seconds)
         }
         return String(format: "%02d:%02d", minutes, seconds)
+    }
+}
+
+@available(iOSApplicationExtension 16.2, *)
+private struct ClampedCountdownText: View {
+    let endDate: Date
+
+    var body: some View {
+        // `Text(date, style: .timer)` starts counting upward after `date`.
+        // A countdown interval stops at zero, keeping Live Activity a passive
+        // projection of the app deadline until the app publishes a new state.
+        Text(
+            timerInterval: Date.distantPast...endDate,
+            countsDown: true,
+            showsHours: false
+        )
     }
 }
 

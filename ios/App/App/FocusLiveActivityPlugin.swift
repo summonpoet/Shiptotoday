@@ -103,13 +103,21 @@ public class FocusLiveActivityPlugin: CAPPlugin, CAPBridgedPlugin {
               let status = call.getString("status") else {
             return nil
         }
+        let safeSeconds = max(0, seconds)
+        let safeNextCheckInSeconds = call.getInt("nextCheckInSeconds").map {
+            min(max(0, $0), safeSeconds)
+        }
+        let suppliedNextCheckInDate = call.getDouble("nextCheckInDate").map {
+            Date(timeIntervalSince1970: $0 / 1000)
+        }
+        let safeNextCheckInDate = suppliedNextCheckInDate.map {
+            min($0, Date(timeIntervalSince1970: timerDateMs / 1000))
+        }
         return FocusActivityAttributes.ContentState(
             timerDate: Date(timeIntervalSince1970: timerDateMs / 1000),
-            seconds: max(0, seconds),
-            nextCheckInDate: call.getDouble("nextCheckInDate").map {
-                Date(timeIntervalSince1970: $0 / 1000)
-            },
-            nextCheckInSeconds: call.getInt("nextCheckInSeconds").map { max(0, $0) },
+            seconds: safeSeconds,
+            nextCheckInDate: safeNextCheckInDate,
+            nextCheckInSeconds: safeNextCheckInSeconds,
             isRunning: isRunning,
             countsDown: countsDown,
             status: status

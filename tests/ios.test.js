@@ -31,6 +31,8 @@ test('iOS adapter uses native lifecycle and scheduled local notifications', () =
   assert.match(platform, /localNotifications\.requestPermissions\(\)/);
   assert.match(platform, /localNotifications\.schedule\(\{/);
   assert.match(platform, /capacitorApp\.addListener\('appStateChange'/);
+  assert.match(platform, /if \(!isCapacitor\) \{\s*document\.addEventListener\('visibilitychange'/);
+  assert.match(platform, /if \(isCapacitor \|\| !global\.Worker\)/);
   assert.match(platform, /localNotificationActionPerformed/);
   assert.match(platform, /idleAt:\(\) => suspended \? Infinity/);
   assert.match(config.plugins.LocalNotifications.presentationOptions.join(','), /sound,banner,list/);
@@ -48,6 +50,9 @@ test('active focus sessions persist and recover after process suspension', () =>
   assert.match(app, /if \(!event && task && !task\.isPaused\) \{\s*drawTimer\(\);\s*startTicker\(\);/);
   assert.match(app, /DDZPlatform\.lifecycle\.onResume\(\(\) => \{\s*resumeForegroundSession\(\);/);
   assert.match(app, /if \(task\) resumeForegroundSession\(true\);/);
+  assert.match(app, /advanceTimerTo\(Date\.now\(\)\);[\s\S]*stopTicker\(\);[\s\S]*persistActiveSession\(\);[\s\S]*scheduleNextSessionEvent\(\);/);
+  assert.match(app, /stopBreakTicker\(\);\s*suspendCheckinAutoSubmit\(\);/);
+  assert.match(app, /screenId === 'screen-checkin'[\s\S]*resumeCheckinAutoSubmit\(\)/);
 });
 
 test('iOS focus sessions bridge every Live Activity lifecycle state', () => {
@@ -75,12 +80,17 @@ test('Live Activity renders countdown, expanded state, lock screen and deep link
   assert.match(liveActivityWidget, /compactLeading:/);
   assert.match(liveActivityWidget, /compactTrailing:/);
   assert.match(liveActivityWidget, /minimal:/);
-  assert.match(liveActivityWidget, /Text\(state\.timerDate, style: \.timer\)/);
+  assert.match(liveActivityWidget, /ClampedCountdownText\(endDate: state\.timerDate\)/);
+  assert.match(liveActivityWidget, /ClampedCountdownText\(endDate: date\)/);
+  assert.match(liveActivityWidget, /timerInterval: Date\.distantPast\.\.\.endDate/);
+  assert.match(liveActivityWidget, /countsDown: true/);
   assert.match(liveActivityWidget, /CheckInTimerText/);
   assert.match(liveActivityWidget, /frame\(width: 46, alignment: \.center\)/);
   assert.match(liveActivityWidget, /foregroundStyle\(\.blue\)/);
   assert.match(liveActivityWidget, /foregroundStyle\(\.green\)/);
   assert.match(app, /nextCheckInSeconds/);
+  assert.match(app, /Math\.min\(seconds,/);
+  assert.match(liveActivityPlugin, /min\(max\(0, \$0\), safeSeconds\)/);
   assert.match(liveActivityWidget, /shiptotoday:\/\/timer/);
   assert.match(liveActivityWidget, /case "Away"/);
   assert.match(liveActivityWidget, /case "Paused", "Check-in", "Break"/);

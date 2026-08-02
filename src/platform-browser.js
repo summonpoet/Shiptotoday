@@ -44,7 +44,10 @@
   };
 
   function createPulse(onPulse) {
-    if (!global.Worker) {
+    // Capacitor sessions are explicitly stopped on native app pause and
+    // restarted on resume. A plain interval is more reliable here than a Blob
+    // worker that iOS may leave allocated but no longer pulse after suspension.
+    if (isCapacitor || !global.Worker) {
       const intervalId = setInterval(onPulse, 1000);
       return { stop:() => clearInterval(intervalId) };
     }
@@ -226,17 +229,21 @@
   const lifecycle = {
     onResume(callback) {
       resumeCallbacks.add(callback);
-      document.addEventListener('visibilitychange', () => {
-        if (!document.hidden) callback();
-      });
-      global.addEventListener('focus', callback);
+      if (!isCapacitor) {
+        document.addEventListener('visibilitychange', () => {
+          if (!document.hidden) callback();
+        });
+        global.addEventListener('focus', callback);
+      }
     },
     onPause(callback) {
       pauseCallbacks.add(callback);
-      document.addEventListener('visibilitychange', () => {
-        if (document.hidden) callback();
-      });
-      global.addEventListener('blur', callback);
+      if (!isCapacitor) {
+        document.addEventListener('visibilitychange', () => {
+          if (document.hidden) callback();
+        });
+        global.addEventListener('blur', callback);
+      }
     },
     onOpenUrl(callback) {
       openUrlCallbacks.add(callback);

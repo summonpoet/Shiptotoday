@@ -14,6 +14,9 @@ notifications, check-ins, Away, or Live Activity UI.
   The app and Dynamic Island still update every second after the second entry.
 - [ ] Leave the app backgrounded across a scheduled check-in. The notification
   arrives once, at the expected time, and opening it shows the correct session.
+- [ ] Leave the Check-in screen in the background past its one-minute deadline.
+  No page timer runs in the background; reopening submits Neutral exactly once
+  and resumes from the check-in boundary.
 - [ ] Leave the app backgrounded through zero. The finish notification arrives
   once, the remaining time never becomes negative, and settlement opens with
   the correct worked duration.

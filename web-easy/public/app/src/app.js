@@ -485,7 +485,8 @@ function focusLiveActivityPayload(statusOverride, runningOverride) {
   const seconds = Math.max(0, Math.ceil(countsDown ? task.remSecs : task.flowSecs));
   const hasNextCheckIn = countsDown && task.ciIdx < task.ciPoints.length;
   const nextCheckInSeconds = hasNextCheckIn
-    ? Math.max(0, Math.ceil(task.ciPoints[task.ciIdx] - task.workSecs))
+    ? Math.max(0, Math.min(seconds,
+        Math.ceil(task.ciPoints[task.ciIdx] - task.workSecs)))
     : null;
   const isRunning = runningOverride === undefined ? !task.isPaused : Boolean(runningOverride);
   const status = statusOverride || (task.isPaused
@@ -580,13 +581,16 @@ function openCheckin(src, suppressNotification = false) {
 }
 
 function stopCheckinAutoSubmit() {
-  if (ciAutoWorker) { ciAutoWorker.stop(); ciAutoWorker = null; }
+  suspendCheckinAutoSubmit();
   ciAutoDeadline = null;
 }
 
-function startCheckinAutoSubmit() {
-  stopCheckinAutoSubmit();
-  ciAutoDeadline = Date.now() + 60 * 1000;
+function suspendCheckinAutoSubmit() {
+  if (ciAutoWorker) { ciAutoWorker.stop(); ciAutoWorker = null; }
+}
+
+function runCheckinAutoSubmit() {
+  suspendCheckinAutoSubmit();
   const draw = () => {
     if (!ciAutoDeadline) return;
     const remaining = Math.max(0, Math.ceil((ciAutoDeadline - Date.now()) / 1000));
@@ -595,7 +599,18 @@ function startCheckinAutoSubmit() {
     if (remaining <= 0) confirmCiZone(true);
   };
   draw();
-  ciAutoWorker = DDZPlatform.timers.createPulse(draw);
+  if (ciAutoDeadline) ciAutoWorker = DDZPlatform.timers.createPulse(draw);
+}
+
+function startCheckinAutoSubmit() {
+  stopCheckinAutoSubmit();
+  ciAutoDeadline = Date.now() + 60 * 1000;
+  runCheckinAutoSubmit();
+}
+
+function resumeCheckinAutoSubmit() {
+  if (!ciAutoDeadline) return;
+  runCheckinAutoSubmit();
 }
 
 function markCiSliderTouched(which) {
@@ -1317,6 +1332,8 @@ function resumeForegroundSession(forceTimerScreen = false) {
   } else if (screenId === 'screen-break') {
     updateBreakTimer();
     if (breakEndAt && breakRecord) startBreakTicker();
+  } else if (screenId === 'screen-checkin') {
+    resumeCheckinAutoSubmit();
   }
 
   if (task) {
@@ -1949,7 +1966,15 @@ DDZPlatform.lifecycle.onResume(() => {
 });
 DDZPlatform.lifecycle.onPause(() => {
   if (!task) return;
-  if (tickerWorker) advanceTimerTo(Date.now());
+  if (tickerWorker) {
+    advanceTimerTo(Date.now());
+    // The wall clock remains the source of elapsed time while suspended. Stop
+    // page execution so it cannot race the already-scheduled iOS notification
+    // at the check-in boundary. onResume always creates a fresh pulse.
+    stopTicker();
+  }
+  stopBreakTicker();
+  suspendCheckinAutoSubmit();
   persistActiveSession();
   scheduleNextSessionEvent();
 });

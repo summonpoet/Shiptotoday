@@ -7,9 +7,11 @@ function createTimerHarness() {
   let now = 1_800_000_000_000;
   let activeScreenId = 'screen-timer';
   let pulse = null;
+  let pulseActive = false;
   let pulseCreations = 0;
   let staleWorkerStops = 0;
   const liveActivityUpdates = [];
+  const scheduledEvents = [];
   const lifecycle = {};
   const elements = new Map();
 
@@ -96,14 +98,15 @@ function createTimerHarness() {
       timers: {
         createPulse(callback) {
           pulseCreations += 1;
-          pulse = callback;
-          return {stop() { staleWorkerStops += 1; }};
+          pulseActive = true;
+          pulse = () => { if (pulseActive) callback(); };
+          return {stop() { staleWorkerStops += 1; pulseActive = false; }};
         },
       },
       notifications: {
         requestPermission: async () => 'granted',
         showCheckIn: async () => true,
-        scheduleSessionEvent: async () => true,
+        scheduleSessionEvent: async event => { scheduledEvents.push(event); return true; },
         cancelSessionEvents: async () => true,
       },
       liveActivity: {
@@ -136,6 +139,7 @@ function createTimerHarness() {
     get pulseCreations() { return pulseCreations; },
     get workerStops() { return staleWorkerStops; },
     get liveActivityUpdates() { return liveActivityUpdates; },
+    get scheduledEvents() { return scheduledEvents; },
     advanceClock(ms) { now += ms; },
     evaluate(source) { return vm.runInContext(source, context); },
   };
@@ -178,4 +182,52 @@ test('iOS resume and a second Dynamic Island entry keep both countdowns live', (
   harness.pulse();
   assert.equal(harness.evaluate('task.remSecs'), 109, 'timer does not freeze after re-entry');
   assert.equal(harness.element('t-digits').textContent, '01:49');
+});
+
+test('iOS pause stops page execution and resume reconciles without racing notifications', () => {
+  const harness = createTimerHarness();
+  harness.evaluate(`
+    task = {
+      id:'task_background', title:'Background notification', mode:'countdown',
+      isPaused:false, pauseKind:null, remSecs:120, workSecs:0, flowSecs:0,
+      effectiveTotalSecs:120, lastTickAt:Date.now(),
+      ciPoints:[60], ciIdx:0, checkIns:[], awaySecs:0,
+      awayPeriods:[], breaks:[]
+    };
+  `);
+
+  harness.lifecycle.resume();
+  const remainingBeforePause = harness.evaluate('task.remSecs');
+  harness.lifecycle.pause();
+  assert.equal(harness.workerStops, 1, 'foreground pulse is stopped on native pause');
+  assert.equal(harness.scheduledEvents.at(-1).kind, 'checkin');
+
+  harness.advanceClock(10_000);
+  harness.pulse();
+  assert.equal(
+    harness.evaluate('task.remSecs'),
+    remainingBeforePause,
+    'background page code cannot consume or cancel the native check-in boundary'
+  );
+
+  harness.lifecycle.resume();
+  assert.equal(harness.evaluate('task.remSecs'), remainingBeforePause - 10);
+  assert.equal(harness.pulseCreations, 2, 'resume creates a new foreground pulse');
+});
+
+test('Live Activity projection never exposes a check-in longer than total time', () => {
+  const harness = createTimerHarness();
+  harness.evaluate(`
+    task = {
+      id:'task_clamp', title:'Clamp projection', mode:'countdown',
+      isPaused:false, pauseKind:null, remSecs:30, workSecs:10, flowSecs:0,
+      effectiveTotalSecs:120, lastTickAt:Date.now(),
+      ciPoints:[100], ciIdx:0, checkIns:[], awaySecs:0,
+      awayPeriods:[], breaks:[]
+    };
+  `);
+  const payload = harness.evaluate('focusLiveActivityPayload()');
+  assert.equal(payload.seconds, 30);
+  assert.equal(payload.nextCheckInSeconds, 30);
+  assert.ok(payload.nextCheckInDate <= payload.timerDate);
 });
