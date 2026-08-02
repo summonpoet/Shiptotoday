@@ -1287,6 +1287,44 @@ function restoreActiveSession() {
   return true;
 }
 
+function resumeForegroundSession(forceTimerScreen = false) {
+  if (!task) return;
+
+  if (forceTimerScreen) {
+    nav('timer');
+  }
+
+  const activeScreen = document.querySelector('.screen.active');
+  const screenId = activeScreen ? activeScreen.id : '';
+
+  if (screenId === 'screen-timer') {
+    if (task.isPaused) {
+      drawTimer();
+      updateFocusLiveActivity(
+        task.pauseKind === 'auto' ? 'Away' : 'Paused',
+        false
+      );
+    } else {
+      // A Web Worker can remain allocated after iOS suspends the WebView while
+      // no longer delivering pulses. First reconcile against the wall clock,
+      // then always replace the worker and re-arm the Live Activity dates.
+      const event = advanceTimerTo(Date.now());
+      if (!event && task && !task.isPaused) {
+        drawTimer();
+        startTicker();
+      }
+    }
+  } else if (screenId === 'screen-break') {
+    updateBreakTimer();
+    if (breakEndAt && breakRecord) startBreakTicker();
+  }
+
+  if (task) {
+    persistActiveSession();
+    scheduleNextSessionEvent();
+  }
+}
+
 // ─────────────────────────────────────────────
 // UTILS
 // ─────────────────────────────────────────────
@@ -1907,12 +1945,7 @@ async function initApp() {
 // Browsers may suspend all JavaScript while a tab or device is asleep. Reconcile
 // immediately on return so the countdown never resumes from a stale value.
 DDZPlatform.lifecycle.onResume(() => {
-  tick();
-  updateBreakTimer();
-  if (task) {
-    persistActiveSession();
-    scheduleNextSessionEvent();
-  }
+  resumeForegroundSession();
 });
 DDZPlatform.lifecycle.onPause(() => {
   if (!task) return;
@@ -1924,9 +1957,6 @@ DDZPlatform.lifecycle.onOpenUrl(url => {
   if (!String(url || '').startsWith('shiptotoday://timer')) return;
   if (!task) restoreActiveSession();
   dismissSplash();
-  if (task) {
-    nav('timer');
-    drawTimer();
-  }
+  if (task) resumeForegroundSession(true);
 });
 initApp();

@@ -43,6 +43,11 @@ test('active focus sessions persist and recover after process suspension', () =>
   assert.match(app, /advanceTimerTo\(Date\.now\(\)\)/);
   assert.match(app, /DDZPlatform\.lifecycle\.onPause/);
   assert.match(app, /scheduleNextSessionEvent/);
+  assert.match(app, /function resumeForegroundSession\(forceTimerScreen = false\)/);
+  assert.match(app, /const event = advanceTimerTo\(Date\.now\(\)\);/);
+  assert.match(app, /if \(!event && task && !task\.isPaused\) \{\s*drawTimer\(\);\s*startTicker\(\);/);
+  assert.match(app, /DDZPlatform\.lifecycle\.onResume\(\(\) => \{\s*resumeForegroundSession\(\);/);
+  assert.match(app, /if \(task\) resumeForegroundSession\(true\);/);
 });
 
 test('iOS focus sessions bridge every Live Activity lifecycle state', () => {
