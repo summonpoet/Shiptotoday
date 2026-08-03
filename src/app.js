@@ -34,7 +34,6 @@ let ciAutoDeadline = null;
 let summaryPlanId = null;
 let summarySession = null;
 let dashboardCharts = { day:null, week:null };
-let swipeStart = null;
 let awayMonitor = null;
 
 // ─────────────────────────────────────────────
@@ -832,8 +831,8 @@ function finishTask() {
   const saved = {
     id: task.id, planId: task.planId || null, title: task.title,
     plannedMin:    task.plannedMin,
-    actualWorkMin: Math.round(task.workSecs / 60),
-    flowExtMin:    Math.round(task.flowSecs / 60),
+    actualWorkMin: +(task.workSecs / 60).toFixed(1),
+    flowExtMin:    +(task.flowSecs / 60).toFixed(1),
     awaySecs:      +(task.awaySecs || 0).toFixed(1),
     awayMin:       +((task.awaySecs || 0) / 60).toFixed(1),
     startedAt:     task.startedAt,
@@ -871,7 +870,7 @@ function renderSummary(sv) {
   summarySession = {...sv};
   document.getElementById('s-title').textContent   = sv.title;
   document.getElementById('s-planned').textContent = sv.plannedMin + 'm';
-  document.getElementById('s-actual').textContent  = (sv.actualWorkMin + sv.flowExtMin) + 'm';
+  document.getElementById('s-actual').textContent  = metricMinutes(DDZCore.sessionElapsedMinutes(sv)) + 'm';
   const awayMin = Number.isFinite(sv.awaySecs) ? sv.awaySecs / 60 : (sv.awayMin || 0);
   const elapsedMin = sv.actualWorkMin + sv.flowExtMin + awayMin;
   const awayPct = elapsedMin > 0 ? Math.round(awayMin / elapsedMin * 100) : 0;
@@ -943,7 +942,7 @@ function renderDistBox(elId, dist, addTitle) {
   if (!el) return;
   const total = Object.values(dist).reduce((a,b) => a+b, 0);
   let html = addTitle ? '<div class="dist-box-title">Zone Distribution</div>' : '';
-  ['flow','cruise','grind','drift','away'].forEach(z => {
+  ['flow','cruise','grind','drift','neutral','away'].forEach(z => {
     html += `<div class="dist-row">
       <div class="dist-dot" style="background:${COLORS[z]}"></div>
       <span class="dist-label">${cap(z)}</span>
@@ -975,7 +974,7 @@ function renderByTask(tasks) {
   }
   let html = '';
   tasks.forEach((t, i) => {
-    const total = (t.actualWorkMin||0) + (t.flowExtMin||0);
+    const total = DDZCore.sessionElapsedMinutes(t);
     const date  = new Date(t.startedAt).toLocaleDateString('en-US', {month:'short', day:'numeric'});
     html += `<div class="task-card">
       <div class="tc-head">
@@ -1020,7 +1019,7 @@ function renderByDay(tasks) {
   let html = '';
   days.forEach((day, di) => {
     const dt    = new Date(day).toLocaleDateString('en-US', {weekday:'short', month:'short', day:'numeric'});
-    const total = byDay[day].reduce((s,t) => s + (t.actualWorkMin||0) + (t.flowExtMin||0), 0);
+    const total = +byDay[day].reduce((s,t) => s + DDZCore.sessionElapsedMinutes(t), 0).toFixed(1);
     html += `<div class="day-card">
       <div class="day-date">${dt} · ${total}m</div>
       <div id="dd-${di}"></div>
@@ -1034,7 +1033,7 @@ function renderByDay(tasks) {
 
   requestAnimationFrame(() => {
     days.forEach((day, di) => {
-      const agg = {flow:0, cruise:0, grind:0, drift:0, away:0};
+      const agg = {flow:0, cruise:0, grind:0, drift:0, neutral:0, away:0};
       byDay[day].forEach(t => { const d = zoneDist(t); Object.keys(d).forEach(z => agg[z] += d[z]); });
       renderDistBox('dd-'+di, agg, false);
 
@@ -1098,7 +1097,7 @@ function renderByWeek() {
       exData.push(+avgEx.toFixed(1));
       efData.push(+avgEf.toFixed(1));
 
-      const zm = {flow:0, cruise:0, grind:0, drift:0, away:0};
+      const zm = {flow:0, cruise:0, grind:0, drift:0, neutral:0, away:0};
       dayTasks.forEach(t => { const d = zoneDist(t); Object.keys(d).forEach(z => zm[z] += d[z]); });
       dayData.push({ zm, ciCount: cis.length });
     }
@@ -1189,7 +1188,7 @@ function renderByWeek() {
           ${ciCount} check-in${ciCount>1?'s':''} · Avg exertion ${avgExStr} · Avg effectiveness ${avgEfStr}
         </div>
         <div class="week-zone-row">
-          ${['flow','cruise','grind','drift','away'].map(z => `
+          ${['flow','cruise','grind','drift','neutral','away'].map(z => `
             <span class="week-zone-tag">
               <span class="week-zone-dot" style="background:${COLORS[z]}"></span>
               ${cap(z)} ${zm[z]}m
@@ -1843,13 +1842,13 @@ function renderZoneChart(zm) {
   if (!canvas) return;
   if (homeZoneChart) { homeZoneChart.destroy(); homeZoneChart = null; }
 
-  const total = zm.flow + zm.cruise + zm.grind + zm.drift + (zm.away || 0);
+  const total = zm.flow + zm.cruise + zm.grind + zm.drift + (zm.neutral || 0) + (zm.away || 0);
   homeZoneChart = new Chart(canvas.getContext('2d'), {
     type: 'doughnut',
     data: total > 0
-      ? { labels: ['Flow','Cruise','Grind','Drift','Away'],
-          datasets: [{ data: [zm.flow, zm.cruise, zm.grind, zm.drift, zm.away || 0],
-            backgroundColor: [COLORS.flow, COLORS.cruise, COLORS.grind, COLORS.drift, COLORS.away],
+      ? { labels: ['Flow','Cruise','Grind','Drift','Neutral','Away'],
+          datasets: [{ data: [zm.flow, zm.cruise, zm.grind, zm.drift, zm.neutral || 0, zm.away || 0],
+            backgroundColor: [COLORS.flow, COLORS.cruise, COLORS.grind, COLORS.drift, COLORS.neutral, COLORS.away],
             borderWidth: 0, hoverOffset: 4 }] }
       : { datasets: [{ data: [1], backgroundColor: ['rgba(0,0,0,.07)'], borderWidth: 0 }] },
     options: {
@@ -1864,7 +1863,7 @@ function renderZoneChart(zm) {
 
   // Legend
   const leg = document.getElementById('h-zone-legend');
-  if (leg) leg.innerHTML = ['flow','cruise','grind','drift','away'].map(z =>
+  if (leg) leg.innerHTML = ['flow','cruise','grind','drift','neutral','away'].map(z =>
     `<div class="zone-row">
       <div class="zone-dot" style="background:${COLORS[z]}"></div>
       <span class="zone-label">${cap(z)}</span>
@@ -1938,24 +1937,6 @@ function renderEffortPie(period, allocation) {
   legend.innerHTML = allocation.map((item, i) => `<div class="dashboard-legend-item"><i style="background:${colors[i]}"></i><span>${esc(item.label)}</span><strong>${metricMinutes(item.minutes)}m</strong></div>`).join('');
 }
 
-function initSwipeNavigation() {
-  const home = document.getElementById('screen-home');
-  const dashboard = document.getElementById('screen-dashboard');
-  const bind = (el, direction, destination) => {
-    el.addEventListener('pointerdown', event => { swipeStart = {x:event.clientX, y:event.clientY}; });
-    el.addEventListener('pointerup', event => {
-      if (!swipeStart) return;
-      const dx = event.clientX - swipeStart.x;
-      const dy = event.clientY - swipeStart.y;
-      swipeStart = null;
-      if (Math.abs(dy) < 70 && (direction === 'right' ? dx > 70 : dx < -70)) nav(destination);
-    });
-    el.addEventListener('pointercancel', () => { swipeStart = null; });
-  };
-  bind(home, 'right', 'dashboard');
-  bind(dashboard, 'left', 'home');
-}
-
 // ─────────────────────────────────────────────
 // TOAST
 // ─────────────────────────────────────────────
@@ -1973,7 +1954,6 @@ async function initApp() {
   // Always show splash on every open; auto-dismiss after 3.6s
   _splashTimer = setTimeout(dismissSplash, 3600);
   await DDZPlatform.init();
-  initSwipeNavigation();
   restoreActiveSession();
 }
 // Browsers may suspend all JavaScript while a tab or device is asleep. Reconcile

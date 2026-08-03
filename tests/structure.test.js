@@ -4,6 +4,7 @@ const fs = require('fs');
 
 const html = fs.readFileSync('dingding_zones.html', 'utf8');
 const app = fs.readFileSync('src/app.js', 'utf8');
+const styles = fs.readFileSync('src/styles.css', 'utf8');
 
 test('HTML loads shared layers in dependency order', () => {
   const core = html.indexOf('./src/core.js');
@@ -33,6 +34,11 @@ test('home uses the new task-first information architecture', () => {
   assert.match(html, />Plan Today<\/button>/);
   assert.match(html, />Instant Task<\/button>/);
   assert.match(html, /id="h-performance"/);
+  assert.match(html, /class="effort-link"[^>]*>Check my effort<\/button>/);
+  assert.doesNotMatch(html, /Swipe right|Swipe left/);
+  assert.doesNotMatch(app, /initSwipeNavigation|swipeStart/);
+  assert.match(styles, /\.h-task-done\s*\{[^}]*border:\s*0/s);
+  assert.match(styles, /\.h-task-done::before/);
   assert.doesNotMatch(html, /id="h-northstar"/);
   assert.doesNotMatch(html, /id="h-zone-chart"/);
 });

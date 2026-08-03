@@ -54,10 +54,7 @@
     <div class="top">
       <div class="home-title-row">
         <h1 class="home-title">Today</h1>
-        <button class="windows-only windows-command" onclick="nav('dashboard')" aria-label="Open dashboard">
-          <span class="windows-command-icon" aria-hidden="true"></span>
-          Dashboard
-        </button>
+        <button class="effort-link" onclick="nav('dashboard')" aria-label="Check my effort">Check my effort</button>
       </div>
       <div class="date-line" id="home-date"></div>
     </div>
@@ -69,7 +66,6 @@
     </div>
 
     <div id="h-performance"></div>
-    <div class="dashboard-swipe-hint">Swipe right for dashboard&nbsp; →</div>
     <button class="btn btn-ghost btn-full home-history" onclick="nav('history')">View History →</button>
   </div>
 
@@ -89,7 +85,6 @@
       <div class="dashboard-chart-wrap"><canvas id="dashboard-week-chart"></canvas></div>
       <div id="dashboard-week-legend" class="dashboard-legend"></div>
     </div>
-    <div class="dashboard-swipe-hint">← Swipe left to return</div>
   </div>
 
   <!-- ===================== START TASK ===================== -->

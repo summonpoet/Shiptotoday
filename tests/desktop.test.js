@@ -38,7 +38,7 @@ test('Windows away detection uses system-wide mouse and keyboard activity', () =
 test('Windows appearance stays isolated from the shared mobile-ready theme', () => {
   assert.match(html, /platform-windows\.css/);
   assert.match(html, /localWindowsPreview/);
-  assert.match(html, /windows-command/);
+  assert.match(html, /effort-link/);
   assert.match(windowsStyles, /:root\.tauri-desktop/);
   assert.match(windowsStyles, /Segoe UI Variable/);
   assert.match(platform, /isTauri \|\| isLocalWindowsPreview/);

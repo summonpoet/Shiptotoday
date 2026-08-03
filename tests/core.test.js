@@ -58,7 +58,9 @@ test('zone distribution and north-star calculations match product rules', () => 
       {elapsedWorkMin:15, zone:'grind', exertion:8, effectiveness:4},
     ],
   };
-  assert.deepEqual(core.zoneDistribution(session), {flow:10, cruise:0, grind:15, drift:0, away:0});
+  assert.deepEqual(core.zoneDistribution(session), {
+    flow:15, cruise:0, grind:15, drift:0, neutral:0, away:0,
+  });
   const now = Date.parse('2026-07-14T12:00:00Z');
   const tasks = [{...session, startedAt:'2026-07-14T11:00:00Z', actualWorkMin:60}];
   assert.equal(core.calculateStrain(tasks, now), 7);
@@ -75,11 +77,29 @@ test('away is a first-class state in session distribution', () => {
     ],
   };
   assert.deepEqual(core.zoneDistribution(session), {
-    flow:10, cruise:0, grind:0, drift:15, away:2.5,
+    flow:15, cruise:0, grind:0, drift:15, neutral:0, away:2.5,
   });
   assert.deepEqual(core.zoneDistribution({actualWorkMin:5, awayMin:2}), {
-    flow:0, cruise:0, grind:0, drift:0, away:2,
+    flow:0, cruise:0, grind:0, drift:0, neutral:5, away:2,
   });
+});
+
+test('zone totals conserve decimal work time and expose full elapsed time', () => {
+  const session = {
+    actualWorkMin:14, awaySecs:144,
+    checkIns:[
+      {elapsedWorkMin:6, zone:'flow'},
+      {elapsedWorkMin:9, zone:'neutral'},
+      {elapsedWorkMin:10, zone:'neutral'},
+    ],
+  };
+  const distribution = core.zoneDistribution(session);
+  const workTotal = ['flow','cruise','grind','drift','neutral']
+    .reduce((sum, zone) => sum + distribution[zone], 0);
+  const elapsedTotal = workTotal + distribution.away;
+  assert.equal(workTotal, 14);
+  assert.equal(elapsedTotal, 16.4);
+  assert.equal(core.sessionElapsedMinutes(session), 16.4);
 });
 
 test('today performance uses positive efficiency and weighted positive effort', () => {
@@ -93,8 +113,8 @@ test('today performance uses positive efficiency and weighted positive effort', 
   };
   assert.deepEqual(core.calculateTodayPerformance([task], day), {
     totalOutputMin:30,
-    highQualityMin:10,
-    workloadMin:33,
+    highQualityMin:15,
+    workloadMin:39,
   });
 });
 
@@ -106,8 +126,8 @@ test('today performance remains compatible with records without raw slider value
   };
   assert.deepEqual(core.calculateTodayPerformance([task], day), {
     totalOutputMin:25,
-    highQualityMin:20,
-    workloadMin:30,
+    highQualityMin:25,
+    workloadMin:37.5,
   });
 });
 
@@ -119,11 +139,11 @@ test('session workload and effort allocation use positive effort only', () => {
       {elapsedWorkMin:15, effortInput:-3, exertion:3},
     ],
   };
-  assert.equal(core.calculateSessionWorkload(session), 12);
+  assert.equal(core.calculateSessionWorkload(session), 18);
   assert.deepEqual(core.calculateEffortAllocation(
     [session, {...session, id:'second', actualWorkMin:25}],
     Date.parse('2026-07-14T00:00:00Z'), Date.parse('2026-07-15T00:00:00Z')
-  ), [{key:'p1', label:'Alpha', minutes:24}]);
+  ), [{key:'p1', label:'Alpha', minutes:36}]);
 });
 
 test('post-countdown actions keep a task shippable or complete it', () => {

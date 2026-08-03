@@ -74,28 +74,41 @@
   }
 
   function zoneDistribution(session) {
-    const checkIns = session.checkIns || [];
-    const total = (session.actualWorkMin || session.plannedMin || 0) + (session.flowExtMin || 0);
-    const result = { flow:0, cruise:0, grind:0, drift:0, away:0 };
+    const total = sessionWorkMinutes(session);
+    const result = { flow:0, cruise:0, grind:0, drift:0, neutral:0, away:0 };
     const awayMinutes = Number.isFinite(session.awaySecs)
       ? Math.max(0, session.awaySecs / 60)
       : Math.max(0, Number(session.awayMin) || 0);
-    if (!checkIns.length) {
-      result.away = +awayMinutes.toFixed(1);
-      return result;
-    }
-
-    for (let i = 0; i < checkIns.length; i++) {
-      const start = checkIns[i].elapsedWorkMin;
-      const end = i + 1 < checkIns.length ? checkIns[i + 1].elapsedWorkMin : total;
-      const zone = checkIns[i].zone;
+    sessionSegments(session).forEach(({checkIn, durationMin}) => {
+      const zone = checkIn.zone;
       if (Object.prototype.hasOwnProperty.call(result, zone)) {
-        result[zone] += Math.max(0, end - start);
+        result[zone] += durationMin;
       }
+    });
+    const workZones = ['flow','cruise','grind','drift','neutral'];
+    workZones.forEach(zone => { result[zone] = +result[zone].toFixed(1); });
+    const roundedTotal = workZones.reduce((sum, zone) => sum + result[zone], 0);
+    const residual = +(total - roundedTotal).toFixed(1);
+    if (residual) {
+      const adjustmentZone = [...workZones].reverse().find(zone => result[zone] > 0) || 'neutral';
+      result[adjustmentZone] = +(result[adjustmentZone] + residual).toFixed(1);
     }
-    ['flow','cruise','grind','drift'].forEach(zone => { result[zone] = Math.round(result[zone]); });
     result.away = +awayMinutes.toFixed(1);
     return result;
+  }
+
+  function sessionWorkMinutes(session) {
+    const baseMinutes = Number.isFinite(session.actualWorkMin)
+      ? session.actualWorkMin
+      : (session.plannedMin || 0);
+    return Math.max(0, baseMinutes + (session.flowExtMin || 0));
+  }
+
+  function sessionElapsedMinutes(session) {
+    const awayMinutes = Number.isFinite(session.awaySecs)
+      ? Math.max(0, session.awaySecs / 60)
+      : Math.max(0, Number(session.awayMin) || 0);
+    return +(sessionWorkMinutes(session) + awayMinutes).toFixed(1);
   }
 
   function recentTasks(tasks, nowMs) {
@@ -129,15 +142,18 @@
 
   function sessionSegments(session) {
     const checkIns = session.checkIns || [];
-    const baseMinutes = Number.isFinite(session.actualWorkMin)
-      ? session.actualWorkMin
-      : (session.plannedMin || 0);
-    const total = baseMinutes + (session.flowExtMin || 0);
+    const total = sessionWorkMinutes(session);
+    if (!checkIns.length) {
+      return total > 0 ? [{
+        checkIn:{zone:'neutral', efficiencyInput:0, effortInput:0, effectiveness:5, exertion:5},
+        durationMin:total,
+      }] : [];
+    }
     return checkIns.map((checkIn, index) => ({
       checkIn,
       durationMin: Math.max(0,
         (index + 1 < checkIns.length ? checkIns[index + 1].elapsedWorkMin : total)
-        - checkIn.elapsedWorkMin
+        - (index === 0 ? 0 : checkIn.elapsedWorkMin)
       ),
     }));
   }
@@ -213,6 +229,8 @@
     calculateTodayPerformance,
     calculateSessionWorkload,
     calculateEffortAllocation,
+    sessionWorkMinutes,
+    sessionElapsedMinutes,
     completedPlanState,
   });
 })(globalThis);
