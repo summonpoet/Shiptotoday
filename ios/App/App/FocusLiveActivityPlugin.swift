@@ -96,13 +96,16 @@ public class FocusLiveActivityPlugin: CAPPlugin, CAPBridgedPlugin {
 
     @available(iOS 16.2, *)
     private func contentState(from call: CAPPluginCall) -> FocusActivityAttributes.ContentState? {
-        guard let timerDateMs = call.getDouble("timerDate"),
+        guard let referenceDateMs = call.getDouble("referenceDate"),
+              let timerDateMs = call.getDouble("timerDate"),
               let seconds = call.getInt("seconds"),
               let isRunning = call.getBool("isRunning"),
               let countsDown = call.getBool("countsDown"),
               let status = call.getString("status") else {
             return nil
         }
+        let referenceDate = Date(timeIntervalSince1970: referenceDateMs / 1000)
+        let timerDate = Date(timeIntervalSince1970: timerDateMs / 1000)
         let safeSeconds = max(0, seconds)
         let safeNextCheckInSeconds = call.getInt("nextCheckInSeconds").map {
             min(max(0, $0), safeSeconds)
@@ -111,10 +114,11 @@ public class FocusLiveActivityPlugin: CAPPlugin, CAPBridgedPlugin {
             Date(timeIntervalSince1970: $0 / 1000)
         }
         let safeNextCheckInDate = suppliedNextCheckInDate.map {
-            min($0, Date(timeIntervalSince1970: timerDateMs / 1000))
+            min(max($0, referenceDate), timerDate)
         }
         return FocusActivityAttributes.ContentState(
-            timerDate: Date(timeIntervalSince1970: timerDateMs / 1000),
+            referenceDate: referenceDate,
+            timerDate: timerDate,
             seconds: safeSeconds,
             nextCheckInDate: safeNextCheckInDate,
             nextCheckInSeconds: safeNextCheckInSeconds,

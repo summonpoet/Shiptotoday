@@ -43,9 +43,12 @@ test('planner, post-countdown completion, check-in and dashboard use the reduced
   assert.doesNotMatch(html, /id="guide-sheet"|id="guide-backdrop"|openGuide\(/);
   assert.match(html, /Done for today/);
   assert.match(html, /Mark as completed/);
+  assert.match(html, /Repeat task/);
   assert.match(html, /id="s-plan-actions"/);
   assert.doesNotMatch(html, /complete-sheet|complete-backdrop|choice-option|>Confirm</);
   assert.match(app, /function finishPlanAfterSession\(choice\)/);
+  assert.match(app, /function repeatCompletedTask\(\)/);
+  assert.match(app, /document\.getElementById\('task-name'\)\.value = repeated\.title/);
   assert.match(app, /function markPlanDone\(id\) \{\s*completePlan\(id, 'all'\)/);
   assert.match(html, /id="screen-dashboard"/);
   assert.match(html, /dashboard-day-chart/);

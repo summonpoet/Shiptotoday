@@ -117,6 +117,7 @@ private struct FocusTimerText: View {
         Group {
             if state.isRunning && state.countsDown {
                 ClampedCountdownText(
+                    startDate: state.referenceDate ?? min(Date(), state.timerDate),
                     endDate: state.timerDate,
                     pauseDate: state.nextCheckInDate
                 )
@@ -153,7 +154,11 @@ private struct CheckInTimerText: View {
             if let seconds = state.nextCheckInSeconds,
                let date = state.nextCheckInDate {
                 if state.isRunning {
-                    ClampedCountdownText(endDate: date, pauseDate: nil)
+                    ClampedCountdownText(
+                        startDate: state.referenceDate ?? min(Date(), date),
+                        endDate: date,
+                        pauseDate: nil
+                    )
                 } else {
                     Text(formattedSeconds(seconds))
                 }
@@ -180,15 +185,16 @@ private struct CheckInTimerText: View {
 
 @available(iOSApplicationExtension 16.2, *)
 private struct ClampedCountdownText: View {
+    let startDate: Date
     let endDate: Date
     let pauseDate: Date?
 
     var body: some View {
-        // `Text(date, style: .timer)` starts counting upward after `date`.
-        // A countdown interval stops at zero, keeping Live Activity a passive
-        // projection of the app deadline until the app publishes a new state.
+        // The interval must use the app snapshot time as its lower bound.
+        // Using an ancient sentinel date makes SwiftUI display the
+        // enormous full interval rather than the session's remaining time.
         Text(
-            timerInterval: Date.distantPast...endDate,
+            timerInterval: min(startDate, endDate)...endDate,
             pauseTime: pauseDate,
             countsDown: true,
             showsHours: false

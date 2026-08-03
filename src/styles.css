@@ -723,6 +723,8 @@
     .priority-card { margin:0; }
 
     .summary-plan-actions { display:flex; flex-direction:column; gap:10px; }
+    .summary-repeat { margin-top: 10px; }
+    #s-instant-done { margin-top: 10px; }
 
     /* Keep glass treatment authoritative over component-specific legacy backgrounds. */
     .zone-card, .ns-card, .state-slider-card, .chart-box, .dist-box,

@@ -4,6 +4,7 @@ import Foundation
 @available(iOS 16.2, *)
 struct FocusActivityAttributes: ActivityAttributes {
     struct ContentState: Codable, Hashable {
+        let referenceDate: Date?
         let timerDate: Date
         let seconds: Int
         let nextCheckInDate: Date?

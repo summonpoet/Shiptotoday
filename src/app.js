@@ -32,6 +32,7 @@ let pendingPlanId = null;
 let ciAutoWorker = null;
 let ciAutoDeadline = null;
 let summaryPlanId = null;
+let summarySession = null;
 let dashboardCharts = { day:null, week:null };
 let swipeStart = null;
 let awayMonitor = null;
@@ -57,7 +58,7 @@ function nav(id) {
     renderPlannerUnfinished();
   }
 }
-function goHome() { task = null; summaryPlanId = null; nav('home'); }
+function goHome() { task = null; summaryPlanId = null; summarySession = null; nav('home'); }
 
 // ─────────────────────────────────────────────
 // HOME
@@ -481,6 +482,7 @@ function scheduleNextSessionEvent() {
 
 function focusLiveActivityPayload(statusOverride, runningOverride) {
   if (!task) return null;
+  const referenceDate = Date.now();
   const countsDown = task.mode !== 'countup';
   const seconds = Math.max(0, Math.ceil(countsDown ? task.remSecs : task.flowSecs));
   const hasNextCheckIn = countsDown && task.ciIdx < task.ciPoints.length;
@@ -495,11 +497,12 @@ function focusLiveActivityPayload(statusOverride, runningOverride) {
   return {
     taskID:task.id,
     taskName:task.title,
-    timerDate:countsDown ? Date.now() + seconds * 1000 : Date.now() - seconds * 1000,
+    referenceDate,
+    timerDate:countsDown ? referenceDate + seconds * 1000 : referenceDate - seconds * 1000,
     seconds,
     nextCheckInDate:nextCheckInSeconds == null
       ? null
-      : Date.now() + nextCheckInSeconds * 1000,
+      : referenceDate + nextCheckInSeconds * 1000,
     nextCheckInSeconds,
     isRunning,
     countsDown,
@@ -865,6 +868,7 @@ function addSessionEffortToPlan(session) {
 // ─────────────────────────────────────────────
 function renderSummary(sv) {
   summaryPlanId = sv.planId || null;
+  summarySession = {...sv};
   document.getElementById('s-title').textContent   = sv.title;
   document.getElementById('s-planned').textContent = sv.plannedMin + 'm';
   document.getElementById('s-actual').textContent  = (sv.actualWorkMin + sv.flowExtMin) + 'm';
@@ -1300,6 +1304,19 @@ function restoreActiveSession() {
     startTicker();
   }
   return true;
+}
+
+function repeatCompletedTask() {
+  if (!summarySession) return;
+  const repeated = summarySession;
+  pendingPlanId = repeated.planId || null;
+  selDur = Number(repeated.plannedMin) || 25;
+  document.getElementById('task-name').value = repeated.title || '';
+  document.querySelectorAll('#screen-startTask .dur-btn').forEach(b =>
+    b.classList.toggle('selected', +b.dataset.min === selDur));
+  summaryPlanId = null;
+  summarySession = null;
+  nav('startTask');
 }
 
 function resumeForegroundSession(forceTimerScreen = false) {

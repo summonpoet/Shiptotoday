@@ -80,9 +80,10 @@ test('Live Activity renders countdown, expanded state, lock screen and deep link
   assert.match(liveActivityWidget, /compactLeading:/);
   assert.match(liveActivityWidget, /compactTrailing:/);
   assert.match(liveActivityWidget, /minimal:/);
-  assert.match(liveActivityWidget, /endDate: state\.timerDate,\s*pauseDate: state\.nextCheckInDate/);
-  assert.match(liveActivityWidget, /ClampedCountdownText\(endDate: date, pauseDate: nil\)/);
-  assert.match(liveActivityWidget, /timerInterval: Date\.distantPast\.\.\.endDate/);
+  assert.match(liveActivityWidget, /startDate: state\.referenceDate \?\? min\(Date\(\), state\.timerDate\),\s*endDate: state\.timerDate/);
+  assert.match(liveActivityWidget, /startDate: state\.referenceDate \?\? min\(Date\(\), date\),\s*endDate: date/);
+  assert.match(liveActivityWidget, /timerInterval: min\(startDate, endDate\)\.\.\.endDate/);
+  assert.doesNotMatch(liveActivityWidget, /Date\.distantPast/);
   assert.match(liveActivityWidget, /pauseTime: pauseDate/);
   assert.match(liveActivityWidget, /countsDown: true/);
   assert.match(liveActivityWidget, /CheckInTimerText/);
@@ -90,6 +91,8 @@ test('Live Activity renders countdown, expanded state, lock screen and deep link
   assert.match(liveActivityWidget, /foregroundStyle\(\.blue\)/);
   assert.match(liveActivityWidget, /foregroundStyle\(\.green\)/);
   assert.match(app, /nextCheckInSeconds/);
+  assert.match(app, /const referenceDate = Date\.now\(\)/);
+  assert.match(liveActivityPlugin, /call\.getDouble\("referenceDate"\)/);
   assert.match(app, /Math\.min\(seconds,/);
   assert.match(liveActivityPlugin, /min\(max\(0, \$0\), safeSeconds\)/);
   assert.match(liveActivityWidget, /shiptotoday:\/\/timer/);
@@ -124,6 +127,7 @@ test('iOS declares that the app does not use non-exempt encryption', () => {
 
 test('Codemagic includes an isolated signed TestFlight workflow', () => {
   assert.match(codemagic, /ios-testflight:/);
+  assert.equal((codemagic.match(/script: npm test/g) || []).length, 2);
   assert.match(codemagic, /app_store_connect: ship-to-today-testflight/);
   assert.match(codemagic, /distribution_type: app_store/);
   assert.match(codemagic, /bundle_identifier: com\.summonpoet\.shiptotoday/);

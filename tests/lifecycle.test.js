@@ -229,5 +229,22 @@ test('Live Activity projection never exposes a check-in longer than total time',
   const payload = harness.evaluate('focusLiveActivityPayload()');
   assert.equal(payload.seconds, 30);
   assert.equal(payload.nextCheckInSeconds, 30);
+  assert.equal(payload.timerDate - payload.referenceDate, 30_000);
   assert.ok(payload.nextCheckInDate <= payload.timerDate);
+});
+
+test('Repeat task preserves identity and returns to duration selection', () => {
+  const harness = createTimerHarness();
+  harness.evaluate(`
+    summaryPlanId = 'plan_repeat';
+    summarySession = {
+      id:'finished_repeat', planId:'plan_repeat',
+      title:'Repeat this work', plannedMin:25
+    };
+    repeatCompletedTask();
+  `);
+  assert.equal(harness.element('task-name').value, 'Repeat this work');
+  assert.equal(harness.evaluate('selDur'), 25);
+  assert.equal(harness.evaluate('pendingPlanId'), 'plan_repeat');
+  assert.equal(harness.evaluate('summarySession'), null);
 });

@@ -13,6 +13,8 @@ workflows:
     scripts:
       - name: Install JavaScript dependencies
         script: npm ci
+      - name: Run timer and lifecycle regression tests
+        script: npm test
       - name: Sync shared web app into Capacitor iOS
         script: npm run ios:sync
       - name: Compile unsigned iOS simulator app
@@ -51,6 +53,8 @@ workflows:
     scripts:
       - name: Install JavaScript dependencies
         script: npm ci
+      - name: Run timer and lifecycle regression tests
+        script: npm test
       - name: Sync shared web app into Capacitor iOS
         script: npm run ios:sync
       - name: Apply App Store signing profile
