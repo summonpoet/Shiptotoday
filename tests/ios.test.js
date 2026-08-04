@@ -131,7 +131,7 @@ test('Codemagic includes an isolated signed TestFlight workflow', () => {
   assert.match(codemagic, /app_store_connect: ship-to-today-testflight/);
   assert.match(codemagic, /distribution_type: app_store/);
   assert.match(codemagic, /bundle_identifier: com\.summonpoet\.shiptotoday/);
-  assert.match(codemagic, /testFlightInternalTestingOnly/);
+  assert.doesNotMatch(codemagic, /testFlightInternalTestingOnly/);
   assert.match(codemagic, /agvtool new-version -all "\$BUILD_NUMBER"/);
   assert.doesNotMatch(codemagic, /CM_BUILD_NUMBER/);
   assert.match(codemagic, /xcode-project build-ipa/);

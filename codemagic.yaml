@@ -58,9 +58,7 @@ workflows:
       - name: Sync shared web app into Capacitor iOS
         script: npm run ios:sync
       - name: Apply App Store signing profile
-        script: >-
-          xcode-project use-profiles
-          --custom-export-options='{"testFlightInternalTestingOnly": true}'
+        script: xcode-project use-profiles
       - name: Set TestFlight build number
         script: |
           cd "$CM_BUILD_DIR/ios/App"
