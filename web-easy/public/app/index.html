@@ -247,8 +247,8 @@
 
   <!-- ===================== PLANNER ===================== -->
   <div id="screen-planner" class="screen">
-    <button class="back-btn" onclick="nav('tasklist')" style="margin-bottom:20px;">← Back</button>
-    <h2 style="margin-bottom:20px;">Add a Task</h2>
+    <button class="back-btn" onclick="closePlanner()" style="margin-bottom:20px;">← Back</button>
+    <h2 id="planner-title" style="margin-bottom:20px;">Add a Task</h2>
     <div id="planner-unfinished"></div>
 
     <div class="field-group">
@@ -280,14 +280,20 @@
     </div>
 
     <div class="spacer"></div>
-    <button class="btn btn-primary" onclick="addPlan()">Add to Today's List</button>
+    <div class="planner-actions">
+      <button id="planner-today-btn" class="btn btn-primary" onclick="savePlan('today')">Add to Today</button>
+      <button class="btn btn-future" onclick="savePlan('future')">Ship to Future</button>
+    </div>
   </div>
 
   <!-- ===================== TASK LIST ===================== -->
   <div id="screen-tasklist" class="screen">
     <div class="tl-header">
       <button class="back-btn" onclick="nav('home')">← Back</button>
-      <h2>Today's Tasks</h2>
+      <div class="tasklist-tabs" aria-label="Task library">
+        <button id="tasklist-recent-tab" class="tasklist-tab active" onclick="setTaskListView('recent')">Recent Tasks</button>
+        <button id="tasklist-future-tab" class="tasklist-tab future" onclick="setTaskListView('future')">Future's Tasks</button>
+      </div>
     </div>
     <div id="tasklist-items"></div>
   </div>

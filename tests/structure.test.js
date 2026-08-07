@@ -64,6 +64,25 @@ test('planner, post-countdown completion, check-in and dashboard use the reduced
   assert.ok(app.indexOf('tasklist-add') < app.indexOf('Completed ·'));
 });
 
+test('task library supports editable Recent and Future workflows', () => {
+  assert.match(html, />Recent Tasks<\/button>/);
+  assert.match(html, />Future's Tasks<\/button>/);
+  assert.match(html, /id="planner-title"/);
+  assert.match(html, /onclick="savePlan\('today'\)"/);
+  assert.match(html, /onclick="savePlan\('future'\)"/);
+  assert.match(html, />Ship to Future<\/button>/);
+  assert.doesNotMatch(html, />Today's Tasks<\/h2>/);
+  assert.match(app, /function openPlanner\(planId = null\)/);
+  assert.match(app, /function savePlan\(destination\)/);
+  assert.match(app, /plan\.futureEnteredAt = now\.toISOString\(\)/);
+  assert.match(app, /function shipToRecent\(planId\)/);
+  assert.match(app, /plan\.list = 'recent';\s*plan\.date = null;/);
+  assert.match(app, /onclick="openPlanner\('\$\{p\.id\}'\)"/);
+  assert.match(app, />Ship to Recent<\/button>/);
+  assert.match(styles, /\.btn-future\s*\{/);
+  assert.match(styles, /\.tasklist-tab\.future/);
+});
+
 test('away pauses after inactivity, resumes only automatic pauses, and appears in settlement', () => {
   const platform = fs.readFileSync('src/platform-browser.js', 'utf8');
   assert.match(app, /const AWAY_IDLE_MS = 2 \* 60 \* 1000/);

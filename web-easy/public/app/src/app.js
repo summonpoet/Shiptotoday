@@ -28,6 +28,8 @@ let ciDragResult = null;    // {zone, ex, ef} derived from the two check-in slid
 let ciSliderTouched = { efficiency:false, effort:false };
 let plannerDur   = 25;      // selected duration on planner screen
 let plannerPriority = 5;
+let editingPlanId = null;
+let taskListView = 'recent';
 let pendingPlanId = null;
 let ciAutoWorker = null;
 let ciAutoDeadline = null;
@@ -46,16 +48,7 @@ function nav(id) {
   if (id === 'history')  renderHistory();
   if (id === 'tasklist') renderTaskList();
   if (id === 'dashboard') requestAnimationFrame(renderDashboard);
-  if (id === 'planner')  {
-    document.getElementById('plan-name').value = '';
-    plannerDur  = 25;
-    plannerPriority = 5;
-    document.getElementById('plan-priority').value = 5;
-    document.getElementById('plan-priority-value').textContent = '5';
-    document.querySelectorAll('#plan-dur-row .dur-btn').forEach(b =>
-      b.classList.toggle('selected', +b.dataset.min === plannerDur));
-    renderPlannerUnfinished();
-  }
+  if (id === 'planner') preparePlanner();
 }
 function goHome() { task = null; summaryPlanId = null; summarySession = null; nav('home'); }
 
@@ -1368,6 +1361,7 @@ function fmt(secs) {
 function pad(n)  { return String(n).padStart(2, '0'); }
 function cap(s)  { return s.charAt(0).toUpperCase() + s.slice(1); }
 function esc(s)  { return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+function escAttr(s) { return esc(String(s)).replace(/"/g,'&quot;').replace(/'/g,'&#39;'); }
 
 // ─────────────────────────────────────────────
 // DRAG BOARD  — reusable SVG drag quadrant
@@ -1534,27 +1528,72 @@ function priorityColor(priority) {
   return colors[Math.max(1, Math.min(10, priority || 5)) - 1];
 }
 
-function addPlan() {
+function openPlanner(planId = null) {
+  editingPlanId = planId;
+  nav('planner');
+}
+
+function closePlanner() {
+  editingPlanId = null;
+  nav('tasklist');
+}
+
+function preparePlanner() {
+  const plan = editingPlanId ? loadPlans().find(p => p.id === editingPlanId) : null;
+  if (editingPlanId && !plan) editingPlanId = null;
+  document.getElementById('planner-title').textContent = plan ? 'Edit Task' : 'Add a Task';
+  document.getElementById('planner-today-btn').textContent = plan ? 'Save & Ship to Today' : 'Add to Today';
+  document.getElementById('plan-name').value = plan ? plan.title : '';
+  plannerDur = plan ? plan.plannedMin : 25;
+  plannerPriority = plan ? plan.priority : 5;
+  document.getElementById('plan-priority').value = plannerPriority;
+  document.getElementById('plan-priority-value').textContent = String(plannerPriority);
+  document.querySelectorAll('#plan-dur-row .dur-btn').forEach(b =>
+    b.classList.toggle('selected', +b.dataset.min === plannerDur));
+  renderPlannerUnfinished();
+}
+
+function savePlan(destination) {
   const name = document.getElementById('plan-name').value.trim();
   if (!name) { showToast('Please enter a task name'); return; }
   const now = new Date();
-  const plan = {
-    id: 'plan_' + Date.now(),
-    title: name,
-    plannedMin: plannerDur,
-    priority: plannerPriority,
-    date: now.toDateString(),
-    createdAt: now.toISOString(),
-    totalEffortSpent: 0,
-    daysLasted: 1,
-    timesShipped: 1,
-    order: null,
-  };
   const plans = loadPlans();
-  plans.push(plan);
+  let plan = editingPlanId ? plans.find(p => p.id === editingPlanId) : null;
+  const today = now.toDateString();
+  const wasToday = plan?.list !== 'future' && plan?.date === today;
+  if (!plan) {
+    plan = {
+      id: 'plan_' + Date.now(),
+      createdAt: now.toISOString(),
+      totalEffortSpent: 0,
+      daysLasted: 1,
+      timesShipped: 0,
+      order: null,
+      date: null,
+    };
+    plans.push(plan);
+  }
+  plan.title = name;
+  plan.plannedMin = plannerDur;
+  plan.priority = plannerPriority;
+  plan.list = destination === 'future' ? 'future' : 'recent';
+  plan.done = false;
+  plan.doneAt = null;
+  plan.doneForTodayAt = null;
+  plan.order = null;
+  if (destination === 'future') {
+    plan.futureEnteredAt = now.toISOString();
+    plan.date = null;
+  } else {
+    plan.date = today;
+    if (!wasToday) plan.timesShipped = (plan.timesShipped || 0) + 1;
+  }
   savePlans(plans);
+  editingPlanId = null;
+  taskListView = destination === 'future' ? 'future' : 'recent';
   document.getElementById('plan-name').value = '';
   nav('tasklist');
+  showToast(destination === 'future' ? 'Shipped to Future' : 'Shipped to Today');
 }
 
 function loadPlans() {
@@ -1568,6 +1607,10 @@ function loadPlans() {
       p.createdAt = (Number.isNaN(fallbackDate.getTime()) ? new Date() : fallbackDate).toISOString(); changed = true;
     }
     if (!Number.isFinite(p.priority)) { p.priority = Math.max(1, Math.min(10, p.constructiveness || 5)); changed = true; }
+    if (p.list !== 'recent' && p.list !== 'future') { p.list = 'recent'; changed = true; }
+    if (p.list === 'future' && (!p.futureEnteredAt || Number.isNaN(new Date(p.futureEnteredAt).getTime()))) {
+      p.futureEnteredAt = p.createdAt; changed = true;
+    }
     if (!Number.isFinite(p.totalEffortSpent)) {
       p.totalEffortSpent = +historicalTasks
         .filter(taskRecord => taskRecord.planId === p.id || (!taskRecord.planId && taskRecord.title === p.title))
@@ -1590,16 +1633,17 @@ function savePlans(plans) {
   DDZPlatform.storage.writeJSON('ddz_plans', plans);
 }
 function todayPlans() {
-  return loadPlans().filter(p => p.date === new Date().toDateString());
+  return loadPlans().filter(p => p.list !== 'future' && p.date === new Date().toDateString());
 }
 
 function unfinishedPlans() {
-  return loadPlans().filter(p => !p.done && p.date !== new Date().toDateString());
+  return loadPlans().filter(p => !p.done && p.list !== 'future' && p.date !== new Date().toDateString());
 }
 
 function renderPlannerUnfinished() {
   const el = document.getElementById('planner-unfinished');
   if (!el) return;
+  if (editingPlanId) { el.innerHTML = ''; return; }
   const old = unfinishedPlans().sort((a,b) => (b.priority||5) - (a.priority||5));
   if (!old.length) { el.innerHTML = ''; return; }
 
@@ -1623,6 +1667,7 @@ function shipToToday(planId) {
   const plans = loadPlans();
   const plan  = plans.find(p => p.id === planId);
   if (!plan) return;
+  plan.list = 'recent';
   plan.date  = new Date().toDateString();
   plan.doneForTodayAt = null;
   plan.timesShipped = (plan.timesShipped || 0) + 1;
@@ -1635,13 +1680,30 @@ function shipToToday(planId) {
 }
 
 // ─────────────────────────────────────────────
+function shipToRecent(planId) {
+  const plans = loadPlans();
+  const plan = plans.find(p => p.id === planId);
+  if (!plan) return;
+  plan.list = 'recent';
+  plan.date = null;
+  plan.doneForTodayAt = null;
+  plan.order = null;
+  savePlans(plans);
+  taskListView = 'recent';
+  renderTaskList();
+  showToast('Moved to Recent');
+}
+
 // TASK LIST
 // ─────────────────────────────────────────────
 function renderTaskList() {
   const allPlans  = loadPlans();
   const today     = new Date().toDateString();
-  const undone    = allPlans.filter(p => !p.done);
-  const done      = allPlans.filter(p => p.done);
+  const undone    = allPlans.filter(p => !p.done && (taskListView === 'future' ? p.list === 'future' : p.list !== 'future'));
+  const done      = taskListView === 'recent' ? allPlans.filter(p => p.done && p.list !== 'future') : [];
+
+  document.getElementById('tasklist-recent-tab').classList.toggle('active', taskListView === 'recent');
+  document.getElementById('tasklist-future-tab').classList.toggle('active', taskListView === 'future');
 
   // Today first, then the ship list; priority is authoritative in both groups.
   undone.sort((a, b) => {
@@ -1656,29 +1718,38 @@ function renderTaskList() {
 
   const container = document.getElementById('tasklist-items');
   let html = '';
-  if (!undone.length) html += '<div class="empty-state compact-empty">No active tasks yet.</div>';
+  if (!undone.length) html += taskListView === 'future'
+    ? '<div class="empty-state compact-empty">Nothing in Future yet.<br>Save an idea here without putting it on today\'s list.</div>'
+    : '<div class="empty-state compact-empty">No recent tasks yet.</div>';
 
   // ── UNDONE ─────────────────────────────────
   undone.forEach((p, i) => {
     const col    = priorityColor(p.priority);
     const isToday = p.date === today;
-    const primaryBtn = isToday
-      ? `<button class="pi-go"      onclick="startPlan('${p.id}')">Start</button>`
-      : `<button class="pi-ship"    onclick="shipToToday('${p.id}')">Ship to Today</button>`;
+    const primaryBtn = taskListView === 'future'
+      ? `<button class="pi-go future-go" onclick="startPlan('${p.id}')">Start</button>
+         <button class="pi-ship pi-to-recent" onclick="shipToRecent('${p.id}')">Ship to Recent</button>`
+      : isToday
+        ? `<button class="pi-go" onclick="startPlan('${p.id}')">Start</button>`
+        : `<button class="pi-ship" onclick="shipToToday('${p.id}')">Ship to Today</button>`;
+    const futureMeta = taskListView === 'future' && p.futureEnteredAt
+      ? `<div class="pi-future-date">Future since ${formatFutureDate(p.futureEnteredAt)}</div>`
+      : '';
     html += `<div class="plan-item" data-id="${p.id}" data-idx="${i}">
       <div class="pi-dot" style="background:${col}"></div>
-      <div class="pi-info">
+      <button class="pi-info pi-edit" onclick="openPlanner('${p.id}')" aria-label="Edit ${escAttr(p.title)}">
         <div class="pi-title">${esc(p.title)}</div>
         <div class="pi-meta">${p.plannedMin}m · Priority ${p.priority}</div>
+        ${futureMeta}
         <div class="pi-stats"><span>Effort ${metricMinutes(p.totalEffortSpent || 0)}m</span><span>${p.daysLasted} day${p.daysLasted===1?'':'s'}</span><span>Shipped ${p.timesShipped}×</span></div>
-      </div>
+      </button>
       ${primaryBtn}
-      <button class="pi-done-btn" onclick="markPlanDone('${p.id}')" title="Finish task">✓</button>
+      ${taskListView === 'recent' ? `<button class="pi-done-btn" onclick="markPlanDone('${p.id}')" title="Finish task">✓</button>` : ''}
       <button class="pi-del"      onclick="deletePlan('${p.id}')"   title="Delete">✕</button>
     </div>`;
   });
 
-  html += `<button class="btn btn-primary tasklist-add" onclick="nav('planner')">+ Add Task</button>`;
+  html += `<button class="btn ${taskListView === 'future' ? 'btn-future' : 'btn-primary'} tasklist-add" onclick="openPlanner()">+ Add Task</button>`;
 
   // ── DONE ───────────────────────────────────
   if (done.length) {
@@ -1697,6 +1768,17 @@ function renderTaskList() {
   }
 
   container.innerHTML = html;
+}
+
+function setTaskListView(view) {
+  taskListView = view === 'future' ? 'future' : 'recent';
+  renderTaskList();
+}
+
+function formatFutureDate(value) {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return 'Unknown date';
+  return date.toLocaleDateString('en-US', { month:'short', day:'numeric', year:'numeric' });
 }
 
 function startPlan(planId) {
@@ -1719,6 +1801,7 @@ function completePlan(id, choice, refresh = true) {
   const plan  = plans.find(p => p.id === id);
   if (!plan) return false;
   Object.assign(plan, DDZCore.completedPlanState(plan, choice));
+  if (choice === 'all') plan.list = 'recent';
   savePlans(plans);
   if (refresh) {
     renderTaskList();
