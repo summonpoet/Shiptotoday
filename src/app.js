@@ -4,6 +4,7 @@
 const SCORES = { drift:{ex:2,ef:2}, cruise:{ex:3,ef:8}, grind:{ex:8,ef:3}, flow:{ex:8,ef:8} };
 const COLORS = { flow:'#F5A623', cruise:'#27AE60', grind:'#E53935', drift:'#78909C', away:'#5F6B7A', neutral:'#8B95A7' };
 const AWAY_IDLE_MS = 2 * 60 * 1000;
+const CHECKIN_RESPONSE_MS = 2 * 60 * 1000;
 const ACTIVE_SESSION_KEY = 'ddz_active_session_v1';
 // Check-in points are dynamic: 1/4, 1/2, 3/4 of effectiveTotalSecs
 // recalculated after every time adjustment
@@ -210,6 +211,10 @@ function stopAwayDetection() {
 function startAwayDetection() {
   stopAwayDetection();
   if (!task) return;
+  // Touch inactivity is not evidence that a phone user is away: they may be
+  // doing the task on another device while iOS simply auto-locks. Away remains
+  // a desktop-only signal based on keyboard and mouse activity.
+  if (DDZPlatform.runtime === 'capacitor-ios') return;
   if (task.isPaused) {
     if (task.pauseKind !== 'auto') return;
     awayMonitor = DDZPlatform.activity.watch({
@@ -284,7 +289,7 @@ function recordMissedNeutralCheckin(timestampMs) {
 
 // iOS suspends the WebView while the phone is locked. Reconcile every elapsed
 // wall-clock second on return, automatically recording check-ins whose
-// one-minute response window expired while the app was unavailable.
+// two-minute response window expired while the app was unavailable.
 function reconcileSuspendedTimerTo(targetMs) {
   if (!task || task.isPaused) return null;
   if (!task.lastTickAt) task.lastTickAt = targetMs;
@@ -304,7 +309,7 @@ function reconcileSuspendedTimerTo(targetMs) {
       return 'finish';
     }
     if (result.event === 'checkin') {
-      const responseDeadline = task.lastTickAt + 60 * 1000;
+      const responseDeadline = task.lastTickAt + CHECKIN_RESPONSE_MS;
       if (targetMs < responseDeadline) {
         stopTicker();
         openCheckin('scheduled', true, responseDeadline);
@@ -331,16 +336,20 @@ function tick() {
 
 function enterAway(source, startedAtMs = Date.now()) {
   if (!task || task.isPaused) return;
+  if (source === 'auto' && DDZPlatform.runtime === 'capacitor-ios') return;
   const effectiveStart = Math.max(startedAtMs, task.lastTickAt || startedAtMs);
+  const trackAsAway = DDZPlatform.runtime !== 'capacitor-ios';
   task.isPaused = true;
   task.pauseKind = source;
-  task.awayStartedAt = effectiveStart;
-  task.awayPeriods.push({
-    startedAt: new Date(effectiveStart).toISOString(),
-    endedAt: null,
-    durationSecs: 0,
-    source,
-  });
+  task.awayStartedAt = trackAsAway ? effectiveStart : null;
+  if (trackAsAway) {
+    task.awayPeriods.push({
+      startedAt: new Date(effectiveStart).toISOString(),
+      endedAt: null,
+      durationSecs: 0,
+      source,
+    });
+  }
   DDZPlatform.notifications.cancelSessionEvents().catch(() => {});
   stopTicker();
   if (source === 'manual') stopAwayDetection();
@@ -356,13 +365,15 @@ function enterAway(source, startedAtMs = Date.now()) {
 }
 
 function closeAway(endedAtMs = Date.now()) {
-  if (!task || !task.isPaused || !task.awayStartedAt) return;
-  const durationSecs = Math.max(0, (endedAtMs - task.awayStartedAt) / 1000);
-  task.awaySecs = (task.awaySecs || 0) + durationSecs;
-  const period = task.awayPeriods[task.awayPeriods.length - 1];
-  if (period && !period.endedAt) {
-    period.endedAt = new Date(endedAtMs).toISOString();
-    period.durationSecs = +durationSecs.toFixed(1);
+  if (!task || !task.isPaused) return;
+  if (task.awayStartedAt) {
+    const durationSecs = Math.max(0, (endedAtMs - task.awayStartedAt) / 1000);
+    task.awaySecs = (task.awaySecs || 0) + durationSecs;
+    const period = task.awayPeriods[task.awayPeriods.length - 1];
+    if (period && !period.endedAt) {
+      period.endedAt = new Date(endedAtMs).toISOString();
+      period.durationSecs = +durationSecs.toFixed(1);
+    }
   }
   task.awayStartedAt = null;
   task.pauseKind = null;
@@ -393,7 +404,9 @@ function drawTimer() {
   } else {
     digEl.textContent = fmt(task.remSecs);
     digEl.classList.remove('flow-up');
-    document.getElementById('t-badge').textContent        = task.isPaused ? 'Away' : 'Focus';
+    document.getElementById('t-badge').textContent        = task.isPaused
+      ? (task.pauseKind === 'auto' ? 'Away' : 'Paused')
+      : 'Focus';
     document.getElementById('t-flow-strip').style.display = 'none';
     document.getElementById('btn-state').style.display    = '';
     if (!endPending) document.getElementById('btn-end').textContent = 'End';
@@ -413,8 +426,10 @@ function drawTimer() {
   }
 
   const badge = document.getElementById('t-badge');
-  if (task.isPaused) badge.textContent = 'Away';
-  badge.classList.toggle('away', task.isPaused);
+  if (task.isPaused) {
+    badge.textContent = task.pauseKind === 'auto' ? 'Away' : 'Paused';
+  }
+  badge.classList.toggle('away', task.isPaused && task.pauseKind === 'auto');
   document.getElementById('btn-pause').textContent = task.isPaused ? 'Resume' : 'Pause';
 
   // Early Finish — visible only in countdown mode after 50% of effective time
@@ -651,7 +666,7 @@ function runCheckinAutoSubmit() {
 
 function startCheckinAutoSubmit(responseDeadline = null) {
   stopCheckinAutoSubmit();
-  ciAutoDeadline = Number(responseDeadline) || Date.now() + 60 * 1000;
+  ciAutoDeadline = Number(responseDeadline) || Date.now() + CHECKIN_RESPONSE_MS;
   runCheckinAutoSubmit();
 }
 
@@ -1302,6 +1317,18 @@ function restoreActiveSession() {
   task.breaks = Array.isArray(task.breaks) ? task.breaks : [];
   task.lastTickAt = Number(task.lastTickAt) || Number(saved.savedAt) || Date.now();
   pendingSrc = saved.pendingSrc || null;
+
+  // Migrate an active iOS session that an older build incorrectly marked Away
+  // immediately before auto-lock. Completed history is intentionally untouched.
+  if (DDZPlatform.runtime === 'capacitor-ios') {
+    task.awaySecs = 0;
+    task.awayPeriods = [];
+    task.awayStartedAt = null;
+    if (task.pauseKind === 'auto') {
+      task.isPaused = false;
+      task.pauseKind = null;
+    }
+  }
 
   const restoredStatus = task.isPaused
     ? (task.pauseKind === 'auto' ? 'Away' : 'Paused')

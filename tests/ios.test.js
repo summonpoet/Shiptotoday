@@ -55,6 +55,10 @@ test('active focus sessions persist and recover after process suspension', () =>
   assert.match(app, /screenId === 'screen-checkin'[\s\S]*resumeCheckinAutoSubmit\(\)/);
   assert.match(app, /function reconcileSuspendedTimerTo\(targetMs\)/);
   assert.match(app, /recordMissedNeutralCheckin\(task\.lastTickAt\)/);
+  assert.match(app, /const CHECKIN_RESPONSE_MS = 2 \* 60 \* 1000/);
+  assert.match(app, /task\.lastTickAt \+ CHECKIN_RESPONSE_MS/);
+  assert.match(app, /Date\.now\(\) \+ CHECKIN_RESPONSE_MS/);
+  assert.match(app, /if \(DDZPlatform\.runtime === 'capacitor-ios'\) return;/);
 });
 
 test('iOS focus sessions bridge every Live Activity lifecycle state', () => {

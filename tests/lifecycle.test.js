@@ -10,6 +10,7 @@ function createTimerHarness() {
   let pulseActive = false;
   let pulseCreations = 0;
   let staleWorkerStops = 0;
+  let activityWatchCreations = 0;
   const liveActivityUpdates = [];
   const scheduledEvents = [];
   const lifecycle = {};
@@ -106,6 +107,7 @@ function createTimerHarness() {
       },
     },
     DDZPlatform: {
+      runtime: 'capacitor-ios',
       storage: {
         readJSON(_key, fallback) { return fallback; },
         writeJSON() { return true; },
@@ -135,7 +137,10 @@ function createTimerHarness() {
         onOpenUrl(callback) { lifecycle.openUrl = callback; },
       },
       activity: {
-        watch() { return {idleAt: () => Infinity, stop() {}}; },
+        watch() {
+          activityWatchCreations += 1;
+          return {idleAt: () => Infinity, stop() {}};
+        },
       },
       // Keep initApp suspended so it cannot overwrite the explicit test state.
       init: () => new Promise(() => {}),
@@ -155,6 +160,7 @@ function createTimerHarness() {
     get workerStops() { return staleWorkerStops; },
     get liveActivityUpdates() { return liveActivityUpdates; },
     get scheduledEvents() { return scheduledEvents; },
+    get activityWatchCreations() { return activityWatchCreations; },
     advanceClock(ms) { now += ms; },
     evaluate(source) { return vm.runInContext(source, context); },
   };
@@ -230,6 +236,78 @@ test('iOS pause stops page execution and resume reconciles without racing notifi
   assert.equal(harness.pulseCreations, 2, 'resume creates a new foreground pulse');
 });
 
+test('iOS auto-lock cannot become Away at the two-minute idle boundary', () => {
+  const harness = createTimerHarness();
+  harness.evaluate(`
+    task = {
+      id:'task_autolock', title:'Phone auto-lock', mode:'countdown',
+      isPaused:false, pauseKind:null, remSecs:600, workSecs:0, flowSecs:0,
+      effectiveTotalSecs:600, lastTickAt:Date.now(),
+      ciPoints:[300], ciIdx:0, checkIns:[], awaySecs:0,
+      awayPeriods:[], breaks:[]
+    };
+  `);
+
+  harness.lifecycle.resume();
+  assert.equal(harness.activityWatchCreations, 0, 'iOS never watches touch inactivity');
+  harness.advanceClock(120_000);
+  harness.pulse();
+  assert.equal(harness.evaluate('task.remSecs'), 480);
+  harness.evaluate(`enterAway('auto', Date.now())`);
+  assert.equal(harness.evaluate('task.isPaused'), false, 'auto Away is ignored on iOS');
+
+  harness.lifecycle.pause();
+  harness.advanceClock(30_000);
+  harness.lifecycle.resume();
+  assert.equal(harness.evaluate('task.remSecs'), 450, 'lock-screen time is reconciled');
+  assert.equal(harness.evaluate('task.awaySecs'), 0);
+});
+
+test('iOS manual pause stays Paused without creating Away time', () => {
+  const harness = createTimerHarness();
+  harness.evaluate(`
+    task = {
+      id:'task_manual_pause', title:'Manual pause', mode:'countdown',
+      isPaused:false, pauseKind:null, remSecs:600, workSecs:0, flowSecs:0,
+      effectiveTotalSecs:600, lastTickAt:Date.now(),
+      ciPoints:[300], ciIdx:0, checkIns:[], awaySecs:0,
+      awayPeriods:[], breaks:[]
+    };
+    enterAway('manual', Date.now());
+  `);
+  assert.equal(harness.evaluate('task.isPaused'), true);
+  assert.equal(harness.element('t-badge').textContent, 'Paused');
+  harness.advanceClock(60_000);
+  harness.evaluate(`leaveAway(Date.now())`);
+  assert.equal(harness.evaluate('task.isPaused'), false);
+  assert.equal(harness.evaluate('task.awaySecs'), 0);
+  assert.equal(harness.evaluate('task.awayPeriods.length'), 0);
+});
+
+test('unanswered iOS check-in becomes Neutral after two minutes and continues', () => {
+  const harness = createTimerHarness();
+  harness.evaluate(`
+    task = {
+      id:'task_checkin_timeout', title:'Check-in timeout', mode:'countdown',
+      isPaused:false, pauseKind:null, remSecs:450, workSecs:150, flowSecs:0,
+      effectiveTotalSecs:600, lastTickAt:Date.now(),
+      ciPoints:[150,300,450], ciIdx:1, checkIns:[], awaySecs:0,
+      awayPeriods:[], breaks:[]
+    };
+    openCheckin('scheduled', true);
+  `);
+  assert.equal(harness.evaluate('ciAutoDeadline - Date.now()'), 120_000);
+  assert.equal(harness.element('screen-checkin').classList.contains('active'), true);
+
+  harness.advanceClock(120_000);
+  harness.pulse();
+  assert.equal(harness.evaluate('task.checkIns.length'), 1);
+  assert.equal(harness.evaluate('task.checkIns[0].zone'), 'neutral');
+  assert.equal(harness.element('screen-timer').classList.contains('active'), true);
+  assert.equal(harness.evaluate('task.isPaused'), false);
+  assert.equal(harness.evaluate('tickerWorker !== null'), true, 'countdown restarts');
+});
+
 test('lock-screen suspension auto-resolves expired check-ins instead of freezing forever', () => {
   const harness = createTimerHarness();
   harness.evaluate(`
@@ -244,7 +322,7 @@ test('lock-screen suspension auto-resolves expired check-ins instead of freezing
 
   harness.lifecycle.resume();
   harness.lifecycle.pause();
-  harness.advanceClock(130_000);
+  harness.advanceClock(190_000);
   harness.lifecycle.resume();
 
   assert.equal(harness.evaluate('task.checkIns.length'), 1, 'expired check-in becomes neutral');

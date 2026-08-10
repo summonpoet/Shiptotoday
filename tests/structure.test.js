@@ -59,7 +59,7 @@ test('planner, post-countdown completion, check-in and dashboard use the reduced
   assert.match(html, /id="screen-dashboard"/);
   assert.match(html, /dashboard-day-chart/);
   assert.match(html, /dashboard-week-chart/);
-  assert.match(app, /ciAutoDeadline = Number\(responseDeadline\) \|\| Date\.now\(\) \+ 60 \* 1000/);
+  assert.match(app, /ciAutoDeadline = Number\(responseDeadline\) \|\| Date\.now\(\) \+ CHECKIN_RESPONSE_MS/);
   assert.match(app, /zone:'neutral', ex:5, ef:5/);
   assert.ok(app.indexOf('tasklist-add') < app.indexOf('Completed ·'));
 });
@@ -87,6 +87,9 @@ test('away pauses after inactivity, resumes only automatic pauses, and appears i
   const platform = fs.readFileSync('src/platform-browser.js', 'utf8');
   assert.match(app, /const AWAY_IDLE_MS = 2 \* 60 \* 1000/);
   assert.match(app, /enterAway\('auto', idleAt\)/);
+  assert.match(app, /if \(DDZPlatform\.runtime === 'capacitor-ios'\) return;/);
+  assert.match(app, /source === 'auto' && DDZPlatform\.runtime === 'capacitor-ios'/);
+  assert.match(app, /task\.pauseKind === 'auto' \? 'Away' : 'Paused'/);
   assert.match(app, /task\.pauseKind === 'auto'/);
   assert.match(app, /enterAway\('manual'\)/);
   assert.match(app, /awayPeriods/);
