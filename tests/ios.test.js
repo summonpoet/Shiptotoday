@@ -46,13 +46,15 @@ test('active focus sessions persist and recover after process suspension', () =>
   assert.match(app, /DDZPlatform\.lifecycle\.onPause/);
   assert.match(app, /scheduleNextSessionEvent/);
   assert.match(app, /function resumeForegroundSession\(forceTimerScreen = false\)/);
-  assert.match(app, /const event = advanceTimerTo\(Date\.now\(\)\);/);
+  assert.match(app, /const event = reconcileSuspendedTimerTo\(Date\.now\(\)\);/);
   assert.match(app, /if \(!event && task && !task\.isPaused\) \{\s*drawTimer\(\);\s*startTicker\(\);/);
   assert.match(app, /DDZPlatform\.lifecycle\.onResume\(\(\) => \{\s*resumeForegroundSession\(\);/);
   assert.match(app, /if \(task\) resumeForegroundSession\(true\);/);
   assert.match(app, /advanceTimerTo\(Date\.now\(\)\);[\s\S]*stopTicker\(\);[\s\S]*persistActiveSession\(\);[\s\S]*scheduleNextSessionEvent\(\);/);
   assert.match(app, /stopBreakTicker\(\);\s*suspendCheckinAutoSubmit\(\);/);
   assert.match(app, /screenId === 'screen-checkin'[\s\S]*resumeCheckinAutoSubmit\(\)/);
+  assert.match(app, /function reconcileSuspendedTimerTo\(targetMs\)/);
+  assert.match(app, /recordMissedNeutralCheckin\(task\.lastTickAt\)/);
 });
 
 test('iOS focus sessions bridge every Live Activity lifecycle state', () => {
@@ -85,6 +87,7 @@ test('Live Activity renders countdown, expanded state, lock screen and deep link
   assert.match(liveActivityWidget, /timerInterval: min\(startDate, endDate\)\.\.\.endDate/);
   assert.doesNotMatch(liveActivityWidget, /Date\.distantPast/);
   assert.match(liveActivityWidget, /pauseTime: pauseDate/);
+  assert.match(liveActivityWidget, /endDate: state\.timerDate,[\s\S]*pauseDate: nil/);
   assert.match(liveActivityWidget, /countsDown: true/);
   assert.match(liveActivityWidget, /CheckInTimerText/);
   assert.match(liveActivityWidget, /frame\(width: 46, alignment: \.center\)/);

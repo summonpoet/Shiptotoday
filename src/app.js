@@ -269,6 +269,58 @@ function advanceTimerTo(targetMs) {
   return null;
 }
 
+function recordMissedNeutralCheckin(timestampMs) {
+  if (!task) return;
+  task.checkIns.push({
+    id:'ci_' + timestampMs,
+    timestamp:new Date(timestampMs).toISOString(),
+    elapsedWorkMin:+(task.workSecs / 60).toFixed(1),
+    zone:'neutral', exertion:5, effectiveness:5,
+    efficiencyInput:0, effortInput:0,
+    timeAdj:0, source:'scheduled',
+  });
+  pendingSrc = null;
+}
+
+// iOS suspends the WebView while the phone is locked. Reconcile every elapsed
+// wall-clock second on return, automatically recording check-ins whose
+// one-minute response window expired while the app was unavailable.
+function reconcileSuspendedTimerTo(targetMs) {
+  if (!task || task.isPaused) return null;
+  if (!task.lastTickAt) task.lastTickAt = targetMs;
+  let remainingElapsed = Math.floor((targetMs - task.lastTickAt) / 1000);
+  if (remainingElapsed <= 0) return null;
+
+  while (remainingElapsed > 0 && task && !task.isPaused) {
+    const result = DDZCore.advanceSession(task, remainingElapsed);
+    const advancedSecs = Math.max(0, Number(result.advancedSecs) || 0);
+    task.lastTickAt += advancedSecs * 1000;
+    remainingElapsed -= advancedSecs;
+
+    if (result.event === 'finish') {
+      stopTicker();
+      stopAwayDetection();
+      finishTask();
+      return 'finish';
+    }
+    if (result.event === 'checkin') {
+      const responseDeadline = task.lastTickAt + 60 * 1000;
+      if (targetMs < responseDeadline) {
+        stopTicker();
+        openCheckin('scheduled', true, responseDeadline);
+        return 'checkin';
+      }
+      recordMissedNeutralCheckin(task.lastTickAt);
+      continue;
+    }
+    if (advancedSecs <= 0) break;
+  }
+
+  persistActiveSession();
+  drawTimer();
+  return null;
+}
+
 function tick() {
   if (!task || task.isPaused) return;
   const now = Date.now();
@@ -545,7 +597,7 @@ function playCheckInSound() {
 // ─────────────────────────────────────────────
 // CHECK-IN
 // ─────────────────────────────────────────────
-function openCheckin(src, suppressNotification = false) {
+function openCheckin(src, suppressNotification = false, responseDeadline = null) {
   DDZPlatform.notifications.cancelSessionEvents().catch(() => {});
   pendingSrc   = src;
   ciDragResult = {zone:'neutral', ex:5, ef:5, efficiencyInput:0, effortInput:0};
@@ -568,7 +620,7 @@ function openCheckin(src, suppressNotification = false) {
   document.getElementById('ci-effort-value').textContent = '0';
 
   nav('checkin');
-  startCheckinAutoSubmit();
+  startCheckinAutoSubmit(responseDeadline);
   persistActiveSession();
   updateFocusLiveActivity('Check-in', false);
   if (src === 'scheduled' && !suppressNotification) showCheckInNotification();
@@ -597,9 +649,9 @@ function runCheckinAutoSubmit() {
   if (ciAutoDeadline) ciAutoWorker = DDZPlatform.timers.createPulse(draw);
 }
 
-function startCheckinAutoSubmit() {
+function startCheckinAutoSubmit(responseDeadline = null) {
   stopCheckinAutoSubmit();
-  ciAutoDeadline = Date.now() + 60 * 1000;
+  ciAutoDeadline = Number(responseDeadline) || Date.now() + 60 * 1000;
   runCheckinAutoSubmit();
 }
 
@@ -1332,7 +1384,7 @@ function resumeForegroundSession(forceTimerScreen = false) {
       // A Web Worker can remain allocated after iOS suspends the WebView while
       // no longer delivering pulses. First reconcile against the wall clock,
       // then always replace the worker and re-arm the Live Activity dates.
-      const event = advanceTimerTo(Date.now());
+      const event = reconcileSuspendedTimerTo(Date.now());
       if (!event && task && !task.isPaused) {
         drawTimer();
         startTicker();
@@ -1342,7 +1394,18 @@ function resumeForegroundSession(forceTimerScreen = false) {
     updateBreakTimer();
     if (breakEndAt && breakRecord) startBreakTicker();
   } else if (screenId === 'screen-checkin') {
-    resumeCheckinAutoSubmit();
+    if (ciAutoDeadline && Date.now() >= ciAutoDeadline) {
+      stopCheckinAutoSubmit();
+      recordMissedNeutralCheckin(task.lastTickAt || Date.now());
+      nav('timer');
+      const event = reconcileSuspendedTimerTo(Date.now());
+      if (!event && task && !task.isPaused) {
+        drawTimer();
+        startTicker();
+      }
+    } else {
+      resumeCheckinAutoSubmit();
+    }
   }
 
   if (task) {

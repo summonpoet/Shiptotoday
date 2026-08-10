@@ -59,7 +59,7 @@ test('planner, post-countdown completion, check-in and dashboard use the reduced
   assert.match(html, /id="screen-dashboard"/);
   assert.match(html, /dashboard-day-chart/);
   assert.match(html, /dashboard-week-chart/);
-  assert.match(app, /ciAutoDeadline = Date\.now\(\) \+ 60 \* 1000/);
+  assert.match(app, /ciAutoDeadline = Number\(responseDeadline\) \|\| Date\.now\(\) \+ 60 \* 1000/);
   assert.match(app, /zone:'neutral', ex:5, ef:5/);
   assert.ok(app.indexOf('tasklist-add') < app.indexOf('Completed ·'));
 });

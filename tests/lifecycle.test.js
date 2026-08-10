@@ -81,9 +81,24 @@ function createTimerHarness() {
     },
     DDZCore: {
       advanceSession(session, elapsed) {
+        const nextCheckIn = session.ciIdx < session.ciPoints.length
+          ? Math.max(0, session.ciPoints[session.ciIdx] - session.workSecs)
+          : Infinity;
+        if (session.remSecs <= elapsed && session.remSecs <= nextCheckIn) {
+          const advancedSecs = session.remSecs;
+          session.workSecs += advancedSecs;
+          session.remSecs = 0;
+          return {event:'finish', advancedSecs};
+        }
+        if (nextCheckIn <= elapsed && nextCheckIn < session.remSecs) {
+          session.remSecs -= nextCheckIn;
+          session.workSecs += nextCheckIn;
+          session.ciIdx += 1;
+          return {event:'checkin', advancedSecs:nextCheckIn};
+        }
         session.remSecs = Math.max(0, session.remSecs - elapsed);
         session.workSecs += elapsed;
-        return {event: null, advancedSecs: elapsed};
+        return {event:null, advancedSecs:elapsed};
       },
       recalculateCheckIns() {},
       calculateTodayPerformance() {
@@ -213,6 +228,31 @@ test('iOS pause stops page execution and resume reconciles without racing notifi
   harness.lifecycle.resume();
   assert.equal(harness.evaluate('task.remSecs'), remainingBeforePause - 10);
   assert.equal(harness.pulseCreations, 2, 'resume creates a new foreground pulse');
+});
+
+test('lock-screen suspension auto-resolves expired check-ins instead of freezing forever', () => {
+  const harness = createTimerHarness();
+  harness.evaluate(`
+    task = {
+      id:'task_locked', title:'Locked session', mode:'countdown',
+      isPaused:false, pauseKind:null, remSecs:240, workSecs:0, flowSecs:0,
+      effectiveTotalSecs:240, lastTickAt:Date.now(),
+      ciPoints:[60,120,180], ciIdx:0, checkIns:[], awaySecs:0,
+      awayPeriods:[], breaks:[]
+    };
+  `);
+
+  harness.lifecycle.resume();
+  harness.lifecycle.pause();
+  harness.advanceClock(130_000);
+  harness.lifecycle.resume();
+
+  assert.equal(harness.evaluate('task.checkIns.length'), 1, 'expired check-in becomes neutral');
+  assert.equal(harness.evaluate('task.checkIns[0].zone'), 'neutral');
+  assert.equal(harness.evaluate('task.workSecs'), 120, 'wall clock advances to the current check-in');
+  assert.equal(harness.evaluate('task.remSecs'), 120);
+  assert.equal(harness.element('screen-checkin').classList.contains('active'), true);
+  assert.equal(harness.evaluate('ciAutoDeadline - Date.now()'), 50_000);
 });
 
 test('Live Activity projection never exposes a check-in longer than total time', () => {

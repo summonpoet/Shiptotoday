@@ -119,7 +119,9 @@ private struct FocusTimerText: View {
                 ClampedCountdownText(
                     startDate: state.referenceDate ?? min(Date(), state.timerDate),
                     endDate: state.timerDate,
-                    pauseDate: state.nextCheckInDate
+                    // The total countdown must never freeze at a check-in while
+                    // the WebView is suspended behind the lock screen.
+                    pauseDate: nil
                 )
             } else if state.isRunning {
                 Text(state.timerDate, style: .timer)
